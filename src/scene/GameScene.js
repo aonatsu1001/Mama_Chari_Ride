@@ -178,9 +178,20 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
-        // D. 【ゲームオーバー判定】
+        // ------------------------------------------
+        // D. 【ゲームオーバー判定】正面から壁にぶつかった瞬間、または落下時
+        // ------------------------------------------
+        // 💡 プレイヤーの右端X座標が地面（左端パーツ）の壁に重なった瞬間、即座に再起動
+        if (this.player.body.blocked.right) {
+            this.scrollSpeed = 0;
+            console.log("GAME OVER: 壁に正面衝突しました！");
+            this.scene.restart(); 
+            return; // 1コマも進めずにここで処理を終了
+        }
+
+        // 念のため、壁に当たらずそのまま真っ逆さまに穴の底に落ちていった場合の安全用判定
         if (this.player.y > this.scale.height) {
-            console.log("GAME OVER: 穴に落ちました！");
+            console.log("GAME OVER: 穴の底に落ちました！");
             this.scrollSpeed = 0;
             this.scene.restart(); 
         }
