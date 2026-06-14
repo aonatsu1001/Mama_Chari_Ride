@@ -1,3 +1,4 @@
+import TitleScene from './scene/TitleScene.js';
 import InstructionScene from './scene/InstructionScene.js'; // ★追加
 import GameScene from './scene/GameScene.js';
 import GameOverScene from './scene/GameOverScene.js';
@@ -15,7 +16,7 @@ const config = {
         }
     },
     // ★修正：TitleScene と GameScene の間に InstructionScene を挟みます
-    scene: [InstructionScene, GameScene, GameOverScene] 
+    scene: [TitleScene, InstructionScene, GameScene, GameOverScene] 
 };
 
 // （以下、gameの起動やwindow.m5Dataの記述はそのまま）
@@ -23,8 +24,8 @@ const config = {
 // ゲームの起動
 const game = new Phaser.Game(config);
 
-// M5が繋がっていない時用のダミーデータエリアを事前に定義
+// M5StickC からのデータを受け取るためのグローバルオブジェクト初期化
 window.m5Data = {
-    gyroY: undefined, // undefinedにしておくことで自動的にキーボードモードになります
+    gyroY: undefined,
     isJump: false
 };
