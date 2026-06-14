@@ -29,6 +29,13 @@ export default class TitleScene extends Phaser.Scene {
         this.bgVideo.play(true, true); 
         this.bgVideo.setDepth(0); // 最背面
 
+        // 💡 【新設】他のシーンからこのタイトル画面に「戻ってきたとき」の復活処理
+        this.events.on('wake', () => {
+            if (this.bgVideo) {
+                this.bgVideo.play(true, true); // 動画を再開
+            }
+        });
+
         // ------------------------------------------
         // ② タイトルロゴ画像 ＆ 「ママ」装飾（パラメータ完全維持）
         // ------------------------------------------
@@ -158,15 +165,12 @@ export default class TitleScene extends Phaser.Scene {
             container.add(btnText);
 
             // 4. 💡【自動追従】透明なクリック当たり判定エリアを設定
-            // ボタンが少し小さくなったため、元の「120, 30」のオフセット比率を維持したまま、
-            // 新しいボタンサイズ（btnWidth, btnHeight）にジャストフィットする判定矩形を生成します。
-            const offsetX = btnWidth * 0.5; // ボタンの半分の幅だけ右にずらす
-            const offsetY = btnHeight * 0.5; // ボタンの半分の高さだけ下にずらす
+            const offsetX = btnWidth * 0.5; 
+            const offsetY = btnHeight * 0.5; 
 
             const hitX = (-btnWidth / 2) + offsetX;
             const hitY = (-btnHeight / 2) + offsetY;
 
-            // 当たり判定の大きさも、小さくなったボタンの幅・高さに完全に一致させます
             const hitArea = new Phaser.Geom.Rectangle(hitX, hitY, btnWidth, btnHeight);
             btnBgImage.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
             btnBgImage.input.cursor = 'pointer';
@@ -186,42 +190,42 @@ export default class TitleScene extends Phaser.Scene {
 
 
         // ------------------------------------------
-        // ③ START ボタン（📢サイズを横210×縦52に少し小さく調整、指定座標は完全維持）
+        // ③ START ボタン（横210×縦52、指定パラメータ完全維持）
         // ------------------------------------------
         const startHit = createCustomButton(width / 2, height * 0.63, 210, 52, 'START', {
             fontSize: '28px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: 'bold',
-            fill: '#ffffff',       // 文字色は白
-            stroke: '#2b1000',     // 濃い茶色のフチ取り
-            strokeThickness: 6,    // フチの太さ
-            topColor: '#ffaa00',   // 立体ボタン用のグラデーション上部
-            bottomColor: '#e65c00' // 立体ボタン用のグラデーション下部
+            fill: '#ffffff',       
+            stroke: '#2b1000',     
+            strokeThickness: 6,    
+            topColor: '#ffaa00',   
+            bottomColor: '#e65c00' 
         });
 
         startHit.on('pointerdown', () => {
-            this.bgVideo.stop();
-            this.scene.start('GameScene');
+            if (this.bgVideo) this.bgVideo.pause(); // 💡 stop() から安全な pause() に変更
+            this.scene.switch('GameScene');         // 💡 安全なシーンスイッチに変更
         });
 
 
         // ------------------------------------------
-        // ④ 操作説明 ボタン（📢サイズを横210×縦44に少し小さく調整、指定座標は完全維持）
+        // ④ 操作説明 ボタン（横210×縦44、指定パラメータ完全維持）
         // ------------------------------------------
         const infoHit = createCustomButton(width / 2, height * 0.78, 210, 44, '操作説明', {
             fontSize: '20px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: 'bold',
             fill: '#ffffff',
-            stroke: '#113300',     // 操作説明用に深緑のフチ取り
+            stroke: '#113300',     
             strokeThickness: 5,
-            topColor: '#66ff22',   // 立体ボタン用の黄緑グラデーション上部
-            bottomColor: '#3bbf00' // 立体ボタン用の黄緑グラデーション下部
+            topColor: '#66ff22',   
+            bottomColor: '#3bbf00' 
         });
 
         infoHit.on('pointerdown', () => {
-            this.bgVideo.stop();
-            this.scene.start('InstructionScene');
+            if (this.bgVideo) this.bgVideo.pause(); // 💡 stop() から安全な pause() に変更
+            this.scene.switch('InstructionScene');  // 💡 安全なシーンスイッチに変更
         });
     }
 }
