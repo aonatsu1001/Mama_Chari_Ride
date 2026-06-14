@@ -29,7 +29,7 @@ export default class TitleScene extends Phaser.Scene {
         this.bgVideo.play(true, true); 
         this.bgVideo.setDepth(0); // 最背面
 
-        // 💡 【新設】他のシーンからこのタイトル画面に「戻ってきたとき」の復活処理
+        // 【維持】他のシーンからこのタイトル画面に「戻ってきたとき」の復活処理
         this.events.on('wake', () => {
             if (this.bgVideo) {
                 this.bgVideo.play(true, true); // 動画を再開
@@ -39,7 +39,7 @@ export default class TitleScene extends Phaser.Scene {
         // ------------------------------------------
         // ② タイトルロゴ画像 ＆ 「ママ」装飾（パラメータ完全維持）
         // ------------------------------------------
-        const logoX = width / 2;
+        const logoX = width * 5 / 9;
         const logoY = height * 2 / 7;
         this.logoContainer = this.add.container(logoX, logoY);
         this.logoContainer.setDepth(1);
@@ -49,33 +49,63 @@ export default class TitleScene extends Phaser.Scene {
         this.logo.setOrigin(0.5);
         this.logoContainer.add(this.logo);
 
-        // 「ママ」を包み込むオレンジ色の「ふきだし」背景
-        const mamaBg = this.add.graphics();
-        mamaBg.fillStyle(0xff8c00, 1); 
 
-        const rectX = -155;
-        const rectY = -60;
-        const rectW = 100;
-        const rectH = 50;
-        const cornerRadius = 8; 
+        // 💡 【修正のコア】きれいなアーチ状に広がる細身のオレンジ集中線
+        // 「ママ」の頭上を等間隔でぐるっと囲むように、各トゲの傾きと長さを均等に再計算しました。
+        const focusLines = this.add.graphics();
+        focusLines.fillStyle(0xff8c00, 1); // 鮮やかなオレンジ
 
-        mamaBg.fillRoundedRect(rectX, rectY, rectW, rectH, cornerRadius);
-        mamaBg.strokeRoundedRect(rectX, rectY, rectW, rectH, cornerRadius);
+        // 「ママ」のテキスト中央上部を基準点（トゲの先端が向かう中心）にします
+        const cx = -135;
+        const cy = 15;
 
-        // 吹き出しの尻尾（下向きの三角形のトゲ）を底面中央に精密描画
-        mamaBg.beginPath();
-        mamaBg.moveTo(rectX + (rectW / 2) - 10, rectY + rectH); 
-        mamaBg.lineTo(rectX + (rectW / 2) + 10, rectY + rectH); 
-        mamaBg.lineTo(rectX + (rectW / 2) + 4,  rectY + rectH + 12); 
-        mamaBg.closePath();
-        mamaBg.fill();
-        mamaBg.stroke();
-        this.logoContainer.add(mamaBg);
+        // 1本目（左端：外側に大きく開くトゲ）
+        focusLines.beginPath();
+        focusLines.moveTo(cx - 38, cy - 30); 
+        focusLines.lineTo(cx - 32, cy - 36); 
+        focusLines.lineTo(cx - 18, cy - 14); // 鋭い先端
+        focusLines.closePath();
+        focusLines.fill();
+
+        // 2本目（左斜め上）
+        focusLines.beginPath();
+        focusLines.moveTo(cx - 22, cy - 42);
+        focusLines.lineTo(cx - 14, cy - 45);
+        focusLines.lineTo(cx - 9,  cy - 18); // 鋭い先端
+        focusLines.closePath();
+        focusLines.fill();
+
+        // 3本目（中央：真上を向くトゲ）
+        focusLines.beginPath();
+        focusLines.moveTo(cx - 3,  cy - 46);
+        focusLines.lineTo(cx + 3,  cy - 46);
+        focusLines.lineTo(cx,     cy - 19); // 鋭い先端
+        focusLines.closePath();
+        focusLines.fill();
+
+        // 4本目（右斜め上）
+        focusLines.beginPath();
+        focusLines.moveTo(cx + 14, cy - 45);
+        focusLines.lineTo(cx + 22, cy - 42);
+        focusLines.lineTo(cx + 9,  cy - 18); // 鋭い先端
+        focusLines.closePath();
+        focusLines.fill();
+
+        // 5本目（右端：外側に大きく開くトゲ）
+        focusLines.beginPath();
+        focusLines.moveTo(cx + 32, cy - 36);
+        focusLines.lineTo(cx + 38, cy - 30);
+        focusLines.lineTo(cx + 18, cy - 14); // 鋭い先端
+        focusLines.closePath();
+        focusLines.fill();
+
+        this.logoContainer.add(focusLines);
+
 
         // 「ママ」の超肉厚テキストパラメータ設定
         // 1. 背面の太い「白フチ」
-        const mamaStroke = this.add.text(-105, -35, 'ママ', {
-            fontSize: '34px',
+        const mamaStroke = this.add.text(-135, 25, 'ママ', {
+            fontSize: '38px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: '900',
             fill: '#ffffff',       
@@ -86,8 +116,8 @@ export default class TitleScene extends Phaser.Scene {
         this.logoContainer.add(mamaStroke);
 
         // 2. 前面の「黒フチ＋黒文字」
-        this.mamaText = this.add.text(-105, -35, 'ママ', {
-            fontSize: '34px',
+        this.mamaText = this.add.text(-135, 25, 'ママ', {
+            fontSize: '38px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: '900',     
             fill: '#000000',       
@@ -98,7 +128,7 @@ export default class TitleScene extends Phaser.Scene {
         this.logoContainer.add(this.mamaText);
 
         // パラメータ1.4倍を完全維持
-        this.logoContainer.setScale(1.4); 
+        this.logoContainer.setScale(1.4);
 
 
         // ==========================================
@@ -113,9 +143,9 @@ export default class TitleScene extends Phaser.Scene {
             shadow.fillStyle(Phaser.Display.Color.HexStringToColor(textStyleCustom.stroke).color, 1);
             
             const shadowX = -btnWidth / 2;
-            const shadowY = 0; 
+            const shadowY = 0;
             const shadowWidth = btnWidth;
-            const shadowHeight = (btnHeight / 2) + 4; 
+            const shadowHeight = (btnHeight / 2) + 4;
 
             shadow.fillRoundedRect(shadowX, shadowY, shadowWidth, shadowHeight, 16);
             container.add(shadow);
@@ -144,7 +174,7 @@ export default class TitleScene extends Phaser.Scene {
             ctx.lineTo(0, radius);
             ctx.quadraticCurveTo(0, 0, radius, 0);
             ctx.closePath();
-            ctx.fill(); 
+            ctx.fill();
             texture.refresh();
 
             // 生成したグラデーション背景をコンテナに配置
@@ -165,8 +195,8 @@ export default class TitleScene extends Phaser.Scene {
             container.add(btnText);
 
             // 4. 💡【自動追従】透明なクリック当たり判定エリアを設定
-            const offsetX = btnWidth * 0.5; 
-            const offsetY = btnHeight * 0.5; 
+            const offsetX = btnWidth * 0.5;
+            const offsetY = btnHeight * 0.5;
 
             const hitX = (-btnWidth / 2) + offsetX;
             const hitY = (-btnHeight / 2) + offsetY;
@@ -185,7 +215,7 @@ export default class TitleScene extends Phaser.Scene {
                 btnText.y = 0;
             });
 
-            return btnBgImage; 
+            return btnBgImage;
         };
 
 
@@ -204,8 +234,8 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         startHit.on('pointerdown', () => {
-            if (this.bgVideo) this.bgVideo.pause(); // 💡 stop() から安全な pause() に変更
-            this.scene.switch('GameScene');         // 💡 安全なシーンスイッチに変更
+            if (this.bgVideo) this.bgVideo.pause();
+            this.scene.switch('GameScene');        
         });
 
 
@@ -224,8 +254,8 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         infoHit.on('pointerdown', () => {
-            if (this.bgVideo) this.bgVideo.pause(); // 💡 stop() から安全な pause() に変更
-            this.scene.switch('InstructionScene');  // 💡 安全なシーンスイッチに変更
+            if (this.bgVideo) this.bgVideo.pause();
+            this.scene.switch('InstructionScene'); 
         });
     }
 }
