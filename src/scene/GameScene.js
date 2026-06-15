@@ -265,7 +265,7 @@ export default class GameScene extends Phaser.Scene {
             // ------------------------------------------
             // 難易度の自動スケーリングアルゴリズム
             // ------------------------------------------
-            const maxDifficultyDistance = 500;
+            const maxDifficultyDistance = 1000;
             const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
 
             // 1. 穴の広さ（難易度が上がるにつれて広くなる）
@@ -275,8 +275,8 @@ export default class GameScene extends Phaser.Scene {
 
             // 2. 床の広さ（難易度が上がるにつれて狭くなる）
             // ※左端＋右端パーツの合計幅を考慮し、最小値が250pxを下回らないように安全設定
-            const minPlatform = 350 - (50 * difficulty);
-            const maxPlatform = 600 - (200 * difficulty);
+            const minPlatform = 400 - (100 * difficulty);
+            const maxPlatform = 600 - (100 * difficulty);
             const totalPlatformWidth = Phaser.Math.Between(minPlatform, maxPlatform);
 
             const spawnX = Math.round(this.nextPlatformX + holeWidth);
@@ -309,7 +309,7 @@ export default class GameScene extends Phaser.Scene {
             // ★ 今回の肝：通常の床の上に、ポンッと壁を置く ★
             // ------------------------------------------
             // 3. 壁の出現率（難易度が上がるにつれて頻繁に出る）
-            const wallProb = 20 + (80 * difficulty);
+            const wallProb = 50 + (50 * difficulty);
             const isWall = Phaser.Math.Between(1, 100) <= wallProb;
 
 if (isWall) {
