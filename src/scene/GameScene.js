@@ -57,7 +57,7 @@ export default class GameScene extends Phaser.Scene {
 
         // 物理パラメータの初期値設定
         this.maxSpeed = 3;                // 最大速度 3 を完全維持
-        this.jumpPower = -730;            
+        this.jumpPower = -760;            
         const gravityY = 1800;            
 
         this.scrollSpeed = 0;             
