@@ -1,5 +1,5 @@
 import TitleScene from './scene/TitleScene.js';
-import InstructionScene from './scene/InstructionScene.js'; // ★追加
+import InstructionScene from './scene/TutorialScene.js'; // ★追加
 import GameScene from './scene/GameScene.js';
 import GameOverScene from './scene/GameOverScene.js';
 
