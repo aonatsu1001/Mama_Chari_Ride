@@ -259,10 +259,25 @@ export default class GameScene extends Phaser.Scene {
 
         this.nextPlatformX -= this.scrollSpeed;
 
-// ★★★ 修正③：床に混ざって生成される「独立した壁」 ★★★
+// ★★★ 修正③：難易度変化＋床に混ざる「独立した壁」 ★★★
         if (this.nextPlatformX < this.scale.width) {
-            const holeWidth = Phaser.Math.Between(80, 230);
-            const totalPlatformWidth = Phaser.Math.Between(300, 600);
+            
+            // ------------------------------------------
+            // 難易度の自動スケーリングアルゴリズム
+            // ------------------------------------------
+            const maxDifficultyDistance = 500;
+            const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
+
+            // 1. 穴の広さ（難易度が上がるにつれて広くなる）
+            const minHole = 80 + (100 * difficulty);
+            const maxHole = 230 + (40 * difficulty);
+            const holeWidth = Phaser.Math.Between(minHole, maxHole);
+
+            // 2. 床の広さ（難易度が上がるにつれて狭くなる）
+            // ※左端＋右端パーツの合計幅を考慮し、最小値が250pxを下回らないように安全設定
+            const minPlatform = 350 - (50 * difficulty);
+            const maxPlatform = 600 - (200 * difficulty);
+            const totalPlatformWidth = Phaser.Math.Between(minPlatform, maxPlatform);
 
             const spawnX = Math.round(this.nextPlatformX + holeWidth);
             const spawnY = height - this.floorHeight; // 床は常に通常サイズ（112px）で生成
@@ -293,31 +308,31 @@ export default class GameScene extends Phaser.Scene {
             // ------------------------------------------
             // ★ 今回の肝：通常の床の上に、ポンッと壁を置く ★
             // ------------------------------------------
-            // 確率50%で壁を配置
-            const isWall = Phaser.Math.Between(1, 100) <= 50;
+            // 3. 壁の出現率（難易度が上がるにつれて頻繁に出る）
+            const wallProb = 20 + (80 * difficulty);
+            const isWall = Phaser.Math.Between(1, 100) <= wallProb;
 
-            if (isWall) {
-                // 画像の幅を取得して、壁が穴にはみ出さないか計算
+if (isWall) {
+                // 画像の幅を取得
                 const wallWidth = this.textures.get('wall').getSourceImage().width;
 
-                // 床の幅（centerWidth）が、壁を置くのに十分な広さがある時だけ生成する
-                if (centerWidth > wallWidth + 100) {
+                // ★★★ 修正箇所①：安全装置のハードルを下げる ★★★
+                // 床の幅（centerWidth）が、「壁の幅 ＋ 両脇20pxずつ（計40px）」あれば壁を生成する！
+                if (centerWidth > wallWidth + 40) {
                     const wallHeight = 199; 
-                    const wallY = height - wallHeight; // 画面底から生やす
+                    const wallY = height - wallHeight;
 
-                    // 床の中央部分のどこかに、ランダムで壁を配置する
-                    const wallOffsetX = Phaser.Math.Between(50, centerWidth - wallWidth - 50);
+                    // ★★★ 修正箇所②：壁の配置オフセットを狭くする ★★★
+                    // 壁を置く位置の計算も、端から「50px」ではなく「20px」のギリギリから置けるようにする
+                    const wallOffsetX = Phaser.Math.Between(20, centerWidth - wallWidth - 20);
                     const wallX = centerX + wallOffsetX;
 
-                    // ★★★ すり抜けバグ修正箇所 ★★★
-                    // obstaclesグループの create メソッドを使って生成します
-                    const wallPart = this.obstacles.create(wallX, wallY, 'wall');
+                    const wallPart = this.add.sprite(wallX, wallY, 'wall');
                     wallPart.setOrigin(0, 0);
                     wallPart.setDepth(1); 
-                    
-                    // 【超重要】基準点(Origin)を変えた後は、必ず refreshBody() を呼ぶ！
-                    // これがないと、見た目と当たり判定がズレてしまい「すり抜け」が発生します。
-                    wallPart.refreshBody(); 
+
+                    this.physics.add.existing(wallPart, true);
+                    this.obstacles.add(wallPart); 
                 }
             }
 
