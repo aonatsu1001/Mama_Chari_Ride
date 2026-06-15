@@ -41,7 +41,7 @@ export default class GameOverScene extends Phaser.Scene {
 
 
         // ==========================================
-        // 3. もう一度プレイ（操作説明へ戻る）ボタン
+        // 3. もう一度プレイ（タイトル画面へ戻る）ボタン
         // ==========================================
         const btnWidth = 240;
         const btnHeight = 54;
@@ -59,9 +59,7 @@ export default class GameOverScene extends Phaser.Scene {
         // ② ボタン本体のグラデーション座布団テクスチャを生成
         const key = 'btn_bg_retry';
         
-        // 💡 【ここが修正のコア！】
         // すでにテクスチャマネージャーに 'btn_bg_retry' が登録されているか確認します。
-        // まだ無い時だけ新規作成（createCanvas）にすることで、2回目の重複フリーズを完璧に防ぎます。
         if (!this.textures.exists(key)) {
             const texture = this.textures.createCanvas(key, btnWidth, btnHeight);
             const ctx = texture.context;
@@ -106,14 +104,23 @@ export default class GameOverScene extends Phaser.Scene {
         }).setOrigin(0.5);
         container.add(btnText);
 
-        // ④ 透明なクリック当たり判定エリアを設定
-        const hitArea = new Phaser.Geom.Rectangle(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight);
+        // ④ 💡【ここを修正】透明なクリック当たり判定エリアを設定
+        // ご要望に合わせて、当たり判定エリアのみを「右に15px、下に10px」スライドさせています。
+        // もしズレ幅をさらに調整したい場合は、ここの数値を書き換えてみてください。
+        const offsetX = 120; 
+        const offsetY = 20; 
+
+        const hitX = (-btnWidth / 2) + offsetX;
+        const hitY = (-btnHeight / 2) + offsetY;
+
+        const hitArea = new Phaser.Geom.Rectangle(hitX, hitY, btnWidth, btnHeight);
         btnBgImage.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
         btnBgImage.input.cursor = 'pointer';
 
-        // 💡 動作実績のある安心の遷移ロジックを完全維持
+        // 【維持】動画背景を考慮した完璧な遷移ロジック
         btnBgImage.on('pointerdown', () => {
-            this.scene.start('InstructionScene');
+            this.scene.stop('GameOverScene');
+            this.scene.wake('TitleScene');
         });
 
         // マウスホバーでボタンと文字が連動して少し浮く演出
