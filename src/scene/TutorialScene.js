@@ -4,7 +4,7 @@ export default class TutorialScene extends Phaser.Scene {
     }
 
     // ==========================================
-    // 1. 画像・音声などの素材の事前読み込み（GameSceneと同一）
+    // 1. 画像・音声などの素材の事前読み込み
     // ==========================================
     preload() {
         this.load.image('background', 'assets/bg.png'); 
@@ -15,7 +15,7 @@ export default class TutorialScene extends Phaser.Scene {
         this.load.image('floor_right', 'assets/floor_right.png');
         this.load.image('cactus', 'assets/cactus.png');
 
-        // 💡 【新しく追加】用意していただいたゴールフラッグの画像をロード
+        // ゴールフラッグの画像アセット
         this.load.image('goal', 'assets/goal.png');
 
         // サウンド
@@ -25,6 +25,10 @@ export default class TutorialScene extends Phaser.Scene {
         this.load.audio('se_jump', 'assets/se/jump.mp3');
         this.load.audio('se_hit', 'assets/se/hit.mp3');
         this.load.audio('se_gameover', 'assets/se/gameover.mp3');
+
+        // 💡 【ここを修正】新しく用意していただいた goal.mp3 をロードします
+        // パスが 'assets/se/goal.mp3' であると仮定しています。もし違うフォルダの場合はパスを書き換えてください。
+        this.load.audio('se_goal', 'assets/se/goal.mp3');
     }
 
     // ==========================================
@@ -118,16 +122,14 @@ export default class TutorialScene extends Phaser.Scene {
         this.cacti.add(cactusPart);
         cactusPart.body.updateFromGameObject();
 
-        // 💡 【ここを修正：テキストから画像アセットの配置へ変更】
         // サボテンを越えたさらに400px先にゴールフラッグ画像を配置します
         this.goalX = cactusX + 400; 
         
         this.goalSprite = this.add.image(this.goalX, height - this.floorHeight + 8, 'goal');
-        // 画像の下端が床の上面にピッタリ重なるように、原点を「左下 (0, 1)」に設定します
         this.goalSprite.setOrigin(0, 1);
         this.goalSprite.setDepth(5);
 
-        // 💡 もしフラグ画像が大きすぎる、あるいは小さすぎる場合は、ここを例えば 0.5 などに変更して調整してください
+        // フラグ画像のスケールを完全固定
         this.goalSprite.setScale(0.3); 
 
         // ------------------------------------------
@@ -242,7 +244,7 @@ export default class TutorialScene extends Phaser.Scene {
             }
         }
 
-        // 💡 ゴールフラグ画像の位置をプレイヤーが超えたかチェック
+        // ゴールフラグ画像の位置をプレイヤーが超えたかチェック
         if (this.goalX <= this.player.x) {
             this.showTutorialClearUI();
         }
@@ -268,16 +270,23 @@ export default class TutorialScene extends Phaser.Scene {
             cactus.body.updateFromGameObject(); 
         });
 
-        // 💡 【ここを修正】ゴールフラグ画像のスクロール
+        // ゴールフラグ画像のスクロール
         this.goalX -= this.scrollSpeed;
-        this.goalSprite.x = this.goalX;
+        if (this.goalSprite && this.goalSprite.active) {
+            this.goalSprite.x = this.goalX;
+        }
     }
 
     // ゴール到達時のクリアUI表示とSTARTボタン配置
     showTutorialClearUI() {
         if (this.isGoalAchieved) return;
         this.isGoalAchieved = true;
+        
         this.bgm.stop();
+        
+        // 💡 【ここを修正】新しくロードした専用の se_goal を再生します！
+        this.sound.play('se_goal'); 
+
         this.goalSprite.destroy();
 
         const width = this.scale.width;
@@ -335,6 +344,7 @@ export default class TutorialScene extends Phaser.Scene {
         }).setOrigin(0.5);
         container.add(btnText);
 
+        // 固定パラメータを完全維持（右113、下30）
         const offsetX = 113; 
         const offsetY = 30; 
 
