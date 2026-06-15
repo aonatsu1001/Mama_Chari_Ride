@@ -29,10 +29,13 @@ export default class TitleScene extends Phaser.Scene {
         this.bgVideo.play(true, true); 
         this.bgVideo.setDepth(0); // 最背面
 
-        // 【維持】他のシーンからこのタイトル画面に「戻ってきたとき」の復活処理
+        // 💡 【ここを完全に修正！】ゲームオーバー画面から戻ってきた時（wakeイベント）の処理
+        // 単に play() を呼ぶだけでなく、stop() で再生位置を完全に頭出し（0秒）に戻してから
+        // 再び再生を開始することで、2回目以降も確実に最初から動画が動き出します。
         this.events.on('wake', () => {
             if (this.bgVideo) {
-                this.bgVideo.play(true, true); // 動画を再開
+                this.bgVideo.stop(); // 一度完全に停止させて再生位置を0秒に巻き戻す
+                this.bgVideo.play(true, true); // ループ再生をリスタート
             }
         });
 
@@ -50,52 +53,50 @@ export default class TitleScene extends Phaser.Scene {
         this.logoContainer.add(this.logo);
 
 
-        // 💡 【修正のコア】きれいなアーチ状に広がる細身のオレンジ集中線
-        // 「ママ」の頭上を等間隔でぐるっと囲むように、各トゲの傾きと長さを均等に再計算しました。
+        // 【維持】きれいなアーチ状に広がる細身のオレンジ集中線
         const focusLines = this.add.graphics();
-        focusLines.fillStyle(0xff8c00, 1); // 鮮やかなオレンジ
+        focusLines.fillStyle(0xff8c00, 1); 
 
-        // 「ママ」のテキスト中央上部を基準点（トゲの先端が向かう中心）にします
         const cx = -135;
         const cy = 15;
 
-        // 1本目（左端：外側に大きく開くトゲ）
+        // 1本目
         focusLines.beginPath();
         focusLines.moveTo(cx - 38, cy - 30); 
         focusLines.lineTo(cx - 32, cy - 36); 
-        focusLines.lineTo(cx - 18, cy - 14); // 鋭い先端
+        focusLines.lineTo(cx - 18, cy - 14); 
         focusLines.closePath();
         focusLines.fill();
 
-        // 2本目（左斜め上）
+        // 2本目
         focusLines.beginPath();
         focusLines.moveTo(cx - 22, cy - 42);
         focusLines.lineTo(cx - 14, cy - 45);
-        focusLines.lineTo(cx - 9,  cy - 18); // 鋭い先端
+        focusLines.lineTo(cx - 9,  cy - 18); 
         focusLines.closePath();
         focusLines.fill();
 
-        // 3本目（中央：真上を向くトゲ）
+        // 3本目
         focusLines.beginPath();
         focusLines.moveTo(cx - 3,  cy - 46);
         focusLines.lineTo(cx + 3,  cy - 46);
-        focusLines.lineTo(cx,     cy - 19); // 鋭い先端
+        focusLines.lineTo(cx,     cy - 19); 
         focusLines.closePath();
         focusLines.fill();
 
-        // 4本目（右斜め上）
+        // 4本目
         focusLines.beginPath();
         focusLines.moveTo(cx + 14, cy - 45);
         focusLines.lineTo(cx + 22, cy - 42);
-        focusLines.lineTo(cx + 9,  cy - 18); // 鋭い先端
+        focusLines.lineTo(cx + 9,  cy - 18); 
         focusLines.closePath();
         focusLines.fill();
 
-        // 5本目（右端：外側に大きく開くトゲ）
+        // 5本目
         focusLines.beginPath();
         focusLines.moveTo(cx + 32, cy - 36);
         focusLines.lineTo(cx + 38, cy - 30);
-        focusLines.lineTo(cx + 18, cy - 14); // 鋭い先端
+        focusLines.lineTo(cx + 18, cy - 14); 
         focusLines.closePath();
         focusLines.fill();
 
@@ -132,7 +133,7 @@ export default class TitleScene extends Phaser.Scene {
 
 
         // ==========================================
-        // 💡 共通のボタン描画関数（ボタン縮小に伴い、当たり判定サイズも自動最適化）
+        // 💡 共通のボタン描画関数（指定コード・設定を完全継承）
         // ==========================================
         const createCustomButton = (x, y, btnWidth, btnHeight, textStr, textStyleCustom) => {
             const container = this.add.container(x, y);
@@ -157,11 +158,10 @@ export default class TitleScene extends Phaser.Scene {
 
             // 縦方向グラデーションの作成
             const grad = ctx.createLinearGradient(0, 0, 0, btnHeight);
-            grad.addColorStop(0, textStyleCustom.topColor);    // 上部の明るい色
-            grad.addColorStop(1, textStyleCustom.bottomColor); // 下部の濃い色
+            grad.addColorStop(0, textStyleCustom.topColor);    
+            grad.addColorStop(1, textStyleCustom.bottomColor); 
             ctx.fillStyle = grad;
 
-            // 角丸半径16pxの精密なパスを作成して、純粋にグラデーションの塗りのみを実行
             const radius = 16;
             ctx.beginPath();
             ctx.moveTo(radius, 0);
