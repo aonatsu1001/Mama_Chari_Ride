@@ -13,6 +13,7 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('floor', 'assets/floor.png');
         this.load.image('floor_left', 'assets/floor_left.png');
         this.load.image('floor_right', 'assets/floor_right.png');
+        this.load.image('wall', 'assets/wall.png');
 
         // ★★★ サウンド：音声ファイルの事前読み込み ★★★
         this.load.audio('bgm', 'assets/bgm/bgm.mp3');
@@ -36,13 +37,11 @@ export default class GameScene extends Phaser.Scene {
         // BGMの準備（まだ再生はしません）
         this.bgm = this.sound.add('bgm', { loop: true, volume: 0.5 });
 
-        // 【無限スクロール用】背景のループ配置
+        // 背景のループ配置
         this.background = this.add.tileSprite(0, 0, width, height, 'background');
         this.background.setOrigin(0, 0);
 
-        // ------------------------------------------
         // アセットのサイズに基づくパラメータ計算
-        // ------------------------------------------
         const initialFloorHeight = 112;   
         this.floorHeight = initialFloorHeight;
 
@@ -57,15 +56,13 @@ export default class GameScene extends Phaser.Scene {
         this.edgeLeftWidth = Math.floor(originalLeftWidth * this.leftScaleY);   
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY); 
 
-        // ------------------------------------------
-        // 物理パラメータの初期値設定（受け継ぎ）
-        // ------------------------------------------
-        this.maxSpeed = 3;                
+        // 物理パラメータの初期値設定
+        this.maxSpeed = 6;                
         this.jumpPower = -730;            
         const gravityY = 1800;            
 
         this.scrollSpeed = 0;             
-        this.acceleration = 0.5;          
+        this.acceleration = 1;          
         this.friction = 0.95;             
         this.canJump = true;              
         this.jumpCooldown = 300;          
@@ -73,16 +70,20 @@ export default class GameScene extends Phaser.Scene {
         // UI実装：進んだ距離を管理する変数を初期化
         this.distance = 0;
 
-        // ★★★ 修正：初期フラグの追加・変更 ★★★
+        // 初期フラグの追加・変更
         this.isCountingDown = true; 
-        this.isReadyToCount = false; // ★まだカウントダウンを始めていい段階ではない
+        this.isReadyToCount = false; 
         this.countdownValue = 3;
 
-        // ------------------------------------------
-        // 床（足場）の管理グループ作成
+// ------------------------------------------
+        // 床（足場）＆ ★障害物（壁）の管理グループ作成
         // ------------------------------------------
         this.platforms = this.physics.add.staticGroup();
 
+        // ★★★ 追加①：壁専用のグループと当たり判定を作る ★★★
+        this.obstacles = this.physics.add.staticGroup();
+
+        // （この下の「プレイヤーが最初に降り立つ初期の床システム」はそのまま）
         // ------------------------------------------
         // プレイヤーが最初に降り立つ初期の床システム
         // ------------------------------------------
@@ -107,7 +108,14 @@ export default class GameScene extends Phaser.Scene {
         this.player.body.setGravityY(gravityY);
         this.player.body.setCollideWorldBounds(false); 
 
-        this.playerCollider = this.physics.add.collider(this.player, this.platforms);
+        // ★★★ 修正：プレイヤーを床より手前（Depth: 10）に表示 ★★★
+        this.player.setDepth(10); 
+
+        // 衝突判定の設定
+// ★★★ 修正：床との衝突時にも handleFloorHit を呼び出すように変更 ★★★
+        this.playerCollider = this.physics.add.collider(this.player, this.platforms, this.handleFloorHit, null, this);
+
+        this.physics.add.collider(this.player, this.obstacles, this.handleWallHit, null, this);
 
         // デバッグ用入力の取得
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -133,7 +141,11 @@ export default class GameScene extends Phaser.Scene {
         });
         this.uiText.setScrollFactor(0); 
 
-        // ★★★ 修正：最初は文字を空っぽ「''」にして配置します ★★★
+        // ★★★ 修正：UI関連を最手前に持ってくる（Depth: 100以上） ★★★
+        uiBackground.setDepth(100);
+        this.uiText.setDepth(101);
+
+        // カウントダウン：画面中央のテキスト配置
         this.countdownText = this.add.text(width / 2, height / 2, '', {
             fontSize: '80px',
             fontStyle: 'bold',
@@ -143,9 +155,8 @@ export default class GameScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5);
         this.countdownText.setScrollFactor(0);
+        this.countdownText.setDepth(102); // 文字も手前に
 
-        // ※ create()内でのタイマー起動（this.countdownTimer = ...）は完全に削除しました
-        
         this.isGameOverTriggered = false;
     }
 
@@ -187,27 +198,18 @@ export default class GameScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
-        // ★★★ 修正：着地前、またはカウントダウン中は入力を受け付けない ★★★
+        // 着地前、またはカウントダウン・ゲームオーバー演出中は処理を遮断
         if (this.isCountingDown || this.isGameOverTriggered) {
-            
-            // 👉 着地検知のロジックをここに仕込みます
-            // まだカウント開始の準備ができておらず、プレイヤーが地面に触れた瞬間
             if (!this.isReadyToCount && this.player.body.touching.down) {
-                this.isReadyToCount = true; // 二重に実行されないように即座にロック
-
-                // 着地してから「0.5秒（500ミリ秒）」だけ待ってから、カウントダウンを開始する
+                this.isReadyToCount = true; 
                 this.time.delayedCall(500, () => {
                     this.startCountdownSequence();
                 });
             }
-
-            // カウントダウン中（またはまだ着地前）は、以降のゲーム進行（床スクロール等）をすべて止める
             return;
         }
 
         const height = this.scale.height;
-        
-        // （これより下の A. B. C. D. などの処理は一切変更なしでそのまま）
 
         // A. 【漕ぎ・進む速度】の制御
         const isPaddleSensorConnected = window.m5Data && window.m5Data.gyroY !== undefined;
@@ -233,7 +235,7 @@ export default class GameScene extends Phaser.Scene {
         const displayDistance = Math.round(this.distance);
         this.uiText.setText(`速度: ${displaySpeed} km/h\n距離: ${displayDistance} m`);
 
-        // B. 床の移動とランダム生成
+// B-1. 床の移動とランダム生成
         this.platforms.getChildren().forEach((platform) => {
             platform.x = Math.round(platform.x - this.scrollSpeed);
             platform.body.updateFromGameObject(); 
@@ -244,32 +246,95 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
+        // ★★★ 追加②：壁（obstacles）もプレイヤーの進行に合わせて左へ移動させる ★★★
+        this.obstacles.getChildren().forEach((obstacle) => {
+            obstacle.x = Math.round(obstacle.x - this.scrollSpeed);
+            obstacle.body.updateFromGameObject(); 
+
+            if (obstacle.x + obstacle.displayWidth < 0) {
+                this.obstacles.killAndHide(obstacle);
+                obstacle.destroy();
+            }
+        });
+
         this.nextPlatformX -= this.scrollSpeed;
 
+// ★★★ 修正③：難易度変化＋床に混ざる「独立した壁」 ★★★
         if (this.nextPlatformX < this.scale.width) {
-            const holeWidth = Phaser.Math.Between(80, 230);
-            const totalPlatformWidth = Phaser.Math.Between(300, 600);
+            
+            // ------------------------------------------
+            // 難易度の自動スケーリングアルゴリズム
+            // ------------------------------------------
+            const maxDifficultyDistance = 1000;
+            const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
+
+            // 1. 穴の広さ（難易度が上がるにつれて広くなる）
+            const minHole = 80 + (100 * difficulty);
+            const maxHole = 230 + (40 * difficulty);
+            const holeWidth = Phaser.Math.Between(minHole, maxHole);
+
+            // 2. 床の広さ（難易度が上がるにつれて狭くなる）
+            // ※左端＋右端パーツの合計幅を考慮し、最小値が250pxを下回らないように安全設定
+            const minPlatform = 400 - (100 * difficulty);
+            const maxPlatform = 600 - (100 * difficulty);
+            const totalPlatformWidth = Phaser.Math.Between(minPlatform, maxPlatform);
 
             const spawnX = Math.round(this.nextPlatformX + holeWidth);
-            const spawnY = height - this.floorHeight;
+            const spawnY = height - this.floorHeight; // 床は常に通常サイズ（112px）で生成
 
+            // ------------------------------------------
+            // 常に「平らな通常の床」を生成する
+            // ------------------------------------------
+            // ① 左端
             const leftPart = this.add.sprite(spawnX, spawnY, 'floor_left');
             leftPart.setOrigin(0, 0);
             leftPart.setScale(this.leftScaleY); 
             this.platforms.add(leftPart); 
 
+            // ② 中央
             const centerWidth = totalPlatformWidth - (this.edgeLeftWidth + this.edgeRightWidth);
             const centerX = spawnX + this.edgeLeftWidth;
-
             const centerPart = this.add.tileSprite(centerX, spawnY, centerWidth + 1, this.floorHeight, 'floor');
             centerPart.setOrigin(0, 0);
             this.platforms.add(centerPart);
 
+            // ③ 右端
             const rightX = centerX + centerWidth;
             const rightPart = this.add.sprite(rightX, spawnY, 'floor_right');
             rightPart.setOrigin(0, 0);
             rightPart.setScale(this.rightScaleY); 
             this.platforms.add(rightPart);
+
+            // ------------------------------------------
+            // ★ 今回の肝：通常の床の上に、ポンッと壁を置く ★
+            // ------------------------------------------
+            // 3. 壁の出現率（難易度が上がるにつれて頻繁に出る）
+            const wallProb = 50 + (50 * difficulty);
+            const isWall = Phaser.Math.Between(1, 100) <= wallProb;
+
+if (isWall) {
+                // 画像の幅を取得
+                const wallWidth = this.textures.get('wall').getSourceImage().width;
+
+                // ★★★ 修正箇所①：安全装置のハードルを下げる ★★★
+                // 床の幅（centerWidth）が、「壁の幅 ＋ 両脇20pxずつ（計40px）」あれば壁を生成する！
+                if (centerWidth > wallWidth + 40) {
+                    const wallHeight = 199; 
+                    const wallY = height - wallHeight;
+
+                    // ★★★ 修正箇所②：壁の配置オフセットを狭くする ★★★
+                    // 壁を置く位置の計算も、端から「50px」ではなく「20px」のギリギリから置けるようにする
+                    const wallOffsetX = Phaser.Math.Between(20, centerWidth - wallWidth - 20);
+                    const wallX = centerX + wallOffsetX;
+
+                    const wallPart = this.add.sprite(wallX, wallY, 'wall');
+                    wallPart.setOrigin(0, 0);
+                    wallPart.setDepth(1); 
+
+                    this.physics.add.existing(wallPart, true);
+                    this.obstacles.add(wallPart); 
+                }
+            }
 
             this.nextPlatformX = spawnX + totalPlatformWidth;
         }
@@ -282,7 +347,6 @@ export default class GameScene extends Phaser.Scene {
             if (isJumpSensorTriggered || isSpaceKeyDown) {
                 this.player.body.setVelocityY(this.jumpPower);
                 this.canJump = false;
-                
                 this.sound.play('se_jump');
 
                 this.time.delayedCall(this.jumpCooldown, () => {
@@ -294,21 +358,37 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
-        // 💡 穴の底に落ちた時の最終セーフティ判定（updateが止まる前に落ちた場合用）
+        // 💡 穴の底に落ちた時の最終セーフティ判定
         if (this.player.y > this.scale.height) {
             this.triggerGameOverAnimation();
             return;
         }
-    } // update() の終わり
+    }
 
 // ★★★ 新しく追加：壁にぶつかった瞬間に物理エンジンから呼ばれる関数 ★★★
-    handleWallHit(player, platform) {
+    handleWallHit(player, wall) {
         // すでにゲームオーバー中なら何もしない
         if (this.isGameOverTriggered) return;
 
-        // プレイヤーの右側が床（壁）の左側にぶつかったときだけ（正面衝突）
-        if (player.body.touching.right || player.body.blocked.right) {
-            // 物理エンジンが位置をピッタリ補正した状態の座標で固定する
+        // ★★★ 激突判定の最強ロジック ★★★
+        // プレイヤーの足元（bottom）が、壁の上面（top）より下にある場合のみゲームオーバー！
+        // これにより、上手にジャンプして「壁の上」に乗った場合はセーフになります。
+        // （+15 は、壁の角にギリギリ足が引っかかった時をセーフにするための「遊び」です）
+        if (player.body.bottom > wall.body.top + 15) {
+            this.triggerGameOverAnimation();
+        }
+    }
+
+// ★★★ 修正版：床の側面に激突した瞬間に呼ばれる関数 ★★★
+    handleFloorHit(player, platform) {
+        // すでにゲームオーバー中なら何もしない
+        if (this.isGameOverTriggered) return;
+
+        // ★★★ touching.right の条件を削除！ ★★★
+        // プレイヤーが床と物理的に接触した時点でこの関数が呼ばれます。
+        // その際、プレイヤーの足元（bottom）が床の上面（top）より確実に下（+15px）にあるなら、
+        // それは「上に乗っている」のではなく「側面にぶつかっている」ことになります。
+        if (player.body.bottom > platform.body.top + 15) {
             this.triggerGameOverAnimation();
         }
     }
