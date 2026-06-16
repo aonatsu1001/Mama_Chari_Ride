@@ -24,6 +24,10 @@ export default class GameScene extends Phaser.Scene {
         this.load.audio('se_jump', 'assets/se/jump.mp3');
         this.load.audio('se_hit', 'assets/se/hit.mp3');
         this.load.audio('se_gameover', 'assets/se/gameover.mp3');
+
+        // 100mごとに再生する応援ボイスのロード
+        this.load.audio('voice_terada', 'assets/se/voice_terada.mp3'); 
+        this.load.audio('voice_ohnishi', 'assets/se/voice_ohnishi.mp3');
     }
 
     // ==========================================
@@ -71,6 +75,10 @@ export default class GameScene extends Phaser.Scene {
 
         // UI実装：進んだ距離を管理する変数を初期化
         this.distance = 0;
+
+        // 100mごとのイベント用設定
+        this.nextMilestone = 100; // 次に音を鳴らす目標距離
+        this.cheerVoices = ['voice_terada', 'voice_ohnishi']; // ボイスのキーを配列化
 
         // 初期フラグの追加・変更
         this.isCountingDown = true;
@@ -229,6 +237,20 @@ export default class GameScene extends Phaser.Scene {
         // UI実装：進んだ距離を更新する
         this.distance += this.scrollSpeed * 0.05;
 
+        // 💡 【修正：100mごとのランダム音声再生ロジック】
+        // 現在の距離が目標距離（100, 200, 300...）に到達、または超えた瞬間
+        if (this.distance >= this.nextMilestone) {
+            // JavaScriptの確実なランダム計算を使って、配列のインデックス（0 または 1）を決定
+            const randomIndex = Math.floor(Math.random() * this.cheerVoices.length);
+            const selectedVoice = this.cheerVoices[randomIndex];
+            
+            // 選ばれたボイスを再生（音量を少し大きめの1.2に設定）
+            this.sound.play(selectedVoice, { volume: 1.2 });
+
+            // 次の目標距離を +100m 更新する（次は200m、その次は300m...となる）
+            this.nextMilestone += 100;
+        }
+
         // UI実装：画面上のテキスト表示をリアルタイムに書き換える
         const displaySpeed = Math.round(this.scrollSpeed * 5);
         const displayDistance = Math.round(this.distance);
@@ -263,9 +285,8 @@ export default class GameScene extends Phaser.Scene {
             const maxDifficultyDistance = 1000;
             const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
 
-            // 💡 【ここを修正：穴の大きさを全体的に縮小】
-            const minHole = 80 + (60 * difficulty);  // ➔ 以前より大幅に狭く調整
-            const maxHole = 120 + (40 * difficulty); // ➔ 以前より大幅に狭く調整
+            const minHole = 80 + (60 * difficulty);  
+            const maxHole = 120 + (40 * difficulty); 
             const holeWidth = Phaser.Math.Between(minHole, maxHole);
 
             const minPlatform = 400 - (100 * difficulty);
@@ -302,7 +323,7 @@ export default class GameScene extends Phaser.Scene {
             if (isCactus) {
                 const originalCactusWidth = this.textures.get('cactus').getSourceImage().width;
 
-                // 💡 固定パラメータ維持
+                // 固定パラメータ維持
                 const cactusScale = 0.2; 
 
                 const originalCactusHeight = this.textures.get('cactus').getSourceImage().height;
@@ -310,7 +331,7 @@ export default class GameScene extends Phaser.Scene {
                 const scaledCactusHeight = originalCactusHeight * cactusScale;
 
                 if (centerWidth > scaledCactusWidth + 40) {
-                    // 💡 固定パラメータ維持（床下5px埋め込み）
+                    // 固定パラメータ維持（床下5px埋め込み）
                     const cactusY = height - this.floorHeight - scaledCactusHeight + 5; 
 
                     const cactusOffsetX = Phaser.Math.Between(20, centerWidth - scaledCactusWidth - 20);
