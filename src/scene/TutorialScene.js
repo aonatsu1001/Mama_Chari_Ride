@@ -25,9 +25,6 @@ export default class TutorialScene extends Phaser.Scene {
         this.load.audio('se_jump', 'assets/se/jump.mp3');
         this.load.audio('se_hit', 'assets/se/hit.mp3');
         this.load.audio('se_gameover', 'assets/se/gameover.mp3');
-
-        // 💡 【ここを修正】新しく用意していただいた goal.mp3 をロードします
-        // パスが 'assets/se/goal.mp3' であると仮定しています。もし違うフォルダの場合はパスを書き換えてください。
         this.load.audio('se_goal', 'assets/se/goal.mp3');
     }
 
@@ -39,7 +36,7 @@ export default class TutorialScene extends Phaser.Scene {
         const height = this.scale.height;
 
         // BGMの準備
-        this.bgm = this.sound.add('bgm', { loop: true, volume: 0.5 });
+        this.bgm = this.sound.add('bgm', { loop: true, volume: 0.3 });
 
         // 背景のループ配置
         this.background = this.add.tileSprite(0, 0, width, height, 'background');
@@ -62,7 +59,7 @@ export default class TutorialScene extends Phaser.Scene {
 
         // 物理パラメータの設定（GameSceneと100%同一）
         this.maxSpeed = 3;                
-        this.jumpPower = -730;            
+        this.jumpPower = -760; // 💡 -730から本編同一の-760に同期            
         const gravityY = 1800;            
 
         this.scrollSpeed = 0;             
@@ -80,9 +77,9 @@ export default class TutorialScene extends Phaser.Scene {
         this.cacti = this.physics.add.staticGroup();
 
         // ------------------------------------------
-        // 固定ステージマップデザインの設計
+        // 固定ステージマップデザインの設計（1px隙間バグ防止オーバーラップ適用版）
         // ------------------------------------------
-        // ① 初期足場（スタートからしばらく続く直線）
+        // ① 初期足場
         const platform1Width = 800; 
         const p1CenterWidth = platform1Width - this.edgeRightWidth;
         const p1Center = this.add.tileSprite(0, height - this.floorHeight, p1CenterWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
@@ -90,12 +87,12 @@ export default class TutorialScene extends Phaser.Scene {
         this.platforms.add(p1Center);
         this.platforms.add(p1Right);
 
-        // 固定値の穴のサイズ：小さめの100px幅
+        // 固定値の穴のサイズ
         const holeWidth = 100; 
 
-        // ② 第2足場（穴を越えた先のサボテンとゴールがある床）
-        const platform2X = platform1Width + holeWidth;
-        const platform2Width = 1000;
+        // ② 第2足場（💡 開始X点を「- 1」して前の足場の右端アセットと完全に重ね、1pxの縦の隙間を消滅させます）
+        const platform2X = platform1Width + holeWidth - 1;
+        const platform2Width = 1000 + 1;
         const p2CenterWidth = platform2Width - (this.edgeLeftWidth + this.edgeRightWidth);
         const p2LeftX = platform2X;
         const p2CenterX = p2LeftX + this.edgeLeftWidth;
@@ -122,14 +119,12 @@ export default class TutorialScene extends Phaser.Scene {
         this.cacti.add(cactusPart);
         cactusPart.body.updateFromGameObject();
 
-        // サボテンを越えたさらに400px先にゴールフラッグ画像を配置します
+        // サボテンを越えたさらに400px先にゴールフラッグ画像を配置
         this.goalX = cactusX + 400; 
         
         this.goalSprite = this.add.image(this.goalX, height - this.floorHeight + 8, 'goal');
         this.goalSprite.setOrigin(0, 1);
         this.goalSprite.setDepth(5);
-
-        // フラグ画像のスケールを完全固定
         this.goalSprite.setScale(0.3); 
 
         // ------------------------------------------
@@ -146,7 +141,7 @@ export default class TutorialScene extends Phaser.Scene {
         // 入力キーの取得
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // UI表示（チュートリアル用ラベル付き黒丸UI）
+        // UI表示
         const uiX = 20;   
         const uiY = 20;   
         const uiWidth = 160;  
@@ -163,7 +158,10 @@ export default class TutorialScene extends Phaser.Scene {
             lineSpacing: 4
         }).setScrollFactor(0).setDepth(101);
 
-        // カウントダウン演出をカットして即座に操作を始めるための初期化
+        // 💡 チュートリアルシーンの初期カウントダウン代わりとして、
+        // 最初のプレイヤー着地安定を待つための初期フラグ
+        this.isTutorialStarting = true;
+
         this.bgm.play();
         
         // 画面上部にチュートリアルガイダンスを常駐表示
@@ -181,6 +179,18 @@ export default class TutorialScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
+        // 💡 【移植：開始時ジャンプ暴発完全封殺】
+        // シーンに入ってプレイヤーが地面にしっかり着地するまでは、センサーの古いジャンプフラグを破棄し続けます。
+        if (this.isTutorialStarting) {
+            if (window.m5Data) {
+                window.m5Data.isJump = false;
+            }
+            if (this.player.body.touching.down) {
+                this.isTutorialStarting = false; // 地面に着いたら操作を完全解禁
+            }
+            return;
+        }
+
         if (this.isGameOverTriggered) return;
 
         // ゴール達成時は走行入力を受け付けず、摩擦で静止させる
@@ -192,16 +202,40 @@ export default class TutorialScene extends Phaser.Scene {
         }
 
         // ------------------------------------------
-        // A. 【漕ぎ・進む速度】の制御（GameSceneと100%同一）
+        // 💡 センサー強制ジャンプ制御（本編と100%同一）
+        // ------------------------------------------
+        if (window.m5Data && window.m5Data.isJump) {
+            window.m5Data.isJump = false;
+            if (this.player.body.touching.down) {
+                this.player.body.setVelocityY(this.jumpPower);
+                this.sound.play('se_jump', { volume: 0.5 });
+            }
+        }
+
+        // 💡 キーボード用のバックアップジャンプ判定（本編と100%同一）
+        const isSpaceKeyDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
+        if (this.player.body.touching.down && this.canJump && isSpaceKeyDown) {
+            this.player.body.setVelocityY(this.jumpPower);
+            this.canJump = false;
+            this.sound.play('se_jump', { volume: 0.5 });
+            this.time.delayedCall(this.jumpCooldown, () => {
+                this.canJump = true;
+            });
+        }
+
+        // ------------------------------------------
+        // A. 【漕ぎ・進む速度】の制御（右キー優先化 ＆ ブレーキ連動：本編と100%同一）
         // ------------------------------------------
         if (this.cursors.right.isDown) {
             this.scrollSpeed += this.acceleration;
         } 
+        else if (window.m5Data && window.m5Data.isBrake) {
+            this.scrollSpeed = 0; // ➔ センサーを止めたら滑らずにピタッと完全制動
+        } 
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
-            const isPlayerOnGround = this.player.body.touching.down;
 
-            if (isPlayerOnGround && hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
+            if (hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
                 const gyroValue = Math.abs(window.m5Data.gyroY); 
                 this.scrollSpeed = gyroValue * 0.1;
             } else {
@@ -213,7 +247,8 @@ export default class TutorialScene extends Phaser.Scene {
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
         this.background.tilePositionX += this.scrollSpeed * 0.2; 
 
-        this.distance += this.scrollSpeed * 0.05;
+        // 💡 進んだ距離の計算倍率（0.08）を本編と完全同一に同期
+        this.distance += this.scrollSpeed * 0.08;
 
         const displaySpeed = Math.round(this.scrollSpeed * 5);
         const displayDistance = Math.round(this.distance);
@@ -221,28 +256,6 @@ export default class TutorialScene extends Phaser.Scene {
 
         // ステージ固定配置オブジェクトの移動処理へ
         this.moveStageElements();
-
-        // ------------------------------------------
-        // C. 【ジャンプ】の制御（GameSceneと100%同一）
-        // ------------------------------------------
-        const isJumpSensorTriggered = window.m5Data && window.m5Data.isJump === true;
-        const isSpaceKeyDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
-
-        if (this.player.body.touching.down && this.canJump) {
-            if (isJumpSensorTriggered || isSpaceKeyDown) {
-                this.player.body.setVelocityY(this.jumpPower);
-                this.canJump = false;
-                this.sound.play('se_jump');
-
-                this.time.delayedCall(this.jumpCooldown, () => {
-                    this.canJump = true;
-                });
-                
-                if (isJumpSensorTriggered) {
-                    window.m5Data.isJump = false;
-                }
-            }
-        }
 
         // ゴールフラグ画像の位置をプレイヤーが超えたかチェック
         if (this.goalX <= this.player.x) {
@@ -283,8 +296,6 @@ export default class TutorialScene extends Phaser.Scene {
         this.isGoalAchieved = true;
         
         this.bgm.stop();
-        
-        // 💡 【ここを修正】新しくロードした専用の se_goal を再生します！
         this.sound.play('se_goal'); 
 
         this.goalSprite.destroy();
@@ -344,7 +355,6 @@ export default class TutorialScene extends Phaser.Scene {
         }).setOrigin(0.5);
         container.add(btnText);
 
-        // 固定パラメータを完全維持（右113、下30）
         const offsetX = 113; 
         const offsetY = 30; 
 

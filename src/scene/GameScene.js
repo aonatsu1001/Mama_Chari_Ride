@@ -261,7 +261,7 @@ export default class GameScene extends Phaser.Scene {
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
         this.background.tilePositionX += this.scrollSpeed * 0.2;
 
-        this.distance += this.scrollSpeed * 0.05;
+        this.distance += this.scrollSpeed * 0.08;
 
         if (this.distance >= this.nextMilestone) {
             const randomIndex = Math.floor(Math.random() * this.cheerVoices.length);
