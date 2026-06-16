@@ -93,7 +93,7 @@ export default class GameOverScene extends Phaser.Scene {
         container.add(btnBgImage);
 
         // ③ ボタンの文字（STARTボタンと同じクオリティのArial Black）
-        const btnText = this.add.text(0, 0, 'もう一度プレイ', {
+        const btnText = this.add.text(0, 0, 'タイトル画面へ', {
             fontSize: '24px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: 'bold',

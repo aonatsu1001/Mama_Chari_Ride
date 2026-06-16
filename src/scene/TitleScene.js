@@ -242,7 +242,7 @@ export default class TitleScene extends Phaser.Scene {
         // ------------------------------------------
         // ④ 操作説明 ボタン（横210×縦44、指定パラメータ完全維持）
         // ------------------------------------------
-        const infoHit = createCustomButton(width / 2, height * 0.78, 210, 44, '操作説明', {
+        const infoHit = createCustomButton(width / 2, height * 0.78, 210, 44, 'チュートリアル', {
             fontSize: '20px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: 'bold',
@@ -255,7 +255,7 @@ export default class TitleScene extends Phaser.Scene {
 
         infoHit.on('pointerdown', () => {
             if (this.bgVideo) this.bgVideo.pause();
-            this.scene.switch('InstructionScene'); 
+            this.scene.switch('TutorialScene'); 
         });
     }
 }
