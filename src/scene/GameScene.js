@@ -73,12 +73,15 @@ export default class GameScene extends Phaser.Scene {
         this.canJump = true;              
         this.jumpCooldown = 300;          
 
+        // 2連暴発防止用のタイマーロック
+        this.isSensorJumpLocked = false;
+
         // UI実装：進んだ距離を管理する変数を初期化
         this.distance = 0;
 
         // 100mごとのイベント用設定
-        this.nextMilestone = 100; // 次に音を鳴らす目標距離
-        this.cheerVoices = ['voice_terada', 'voice_ohnishi']; // ボイスのキーを配列化
+        this.nextMilestone = 100; 
+        this.cheerVoices = ['voice_terada', 'voice_ohnishi']; 
 
         // 初期フラグの追加・変更
         this.isCountingDown = true;
@@ -89,11 +92,7 @@ export default class GameScene extends Phaser.Scene {
         this.platforms = this.physics.add.staticGroup();
         this.cacti = this.physics.add.staticGroup();
 
-        // ------------------------------------------
-        // 💡 【バグ修正】プレイヤーが最初に降り立つ初期的システム
-        // ------------------------------------------
-        // 初期の床をパーツ分けせず、画面右端（width）までフラットな floor だけで1枚布として敷き詰めます。
-        // これにより、画面外から新しく追加される直線フロアと「切れ目なく」100%綺麗に一体化します。
+        // 初期の床を1枚布として敷き詰める（20m付近の切れ目バグ修正版）
         const startFloorWidth = width;
         const startPart = this.add.tileSprite(0, height - this.floorHeight, startFloorWidth + 1, this.floorHeight, 'floor');
         startPart.setOrigin(0, 0);
@@ -197,8 +196,7 @@ export default class GameScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
-        // 💡 【バグ修正】着地前、およびカウントダウン・ゲームオーバー中は「すべての」進行処理をここで遮断！
-        // これにより、カウントダウンの最中に距離UIがフライングで加算されていく不具合が100%完全に直ります。
+        // 着地前、およびカウントダウン・ゲームオーバー中は処理を完全に遮断（フライング加算バグ修正版）
         if (this.isCountingDown || this.isGameOverTriggered) {
             if (!this.isReadyToCount && this.player.body.touching.down) {
                 this.isReadyToCount = true;
@@ -212,32 +210,59 @@ export default class GameScene extends Phaser.Scene {
         const height = this.scale.height;
 
         // ------------------------------------------
-        // A. 【漕ぎ・進む速度】の制御（空中センサー遮断ハイブリッド仕様）
+        // 💡 【超最優先：センサー絶対ジャンプ制御】
+        // 他のどんな条件判定（地上判定、速度計算、コライダー解決、ジャンプディレイなど）よりも
+        // 最優先で、生データが3.0を超えたその瞬間に対象を上空へと跳ね上げます。
+        // ------------------------------------------
+        // ------------------------------------------
+// 💡 センサー強制ジャンプ制御
+// main.js で isJump フラグが立ったら（閾値2.5超）
+// 他の条件に関係なくジャンプ
+// ------------------------------------------
+if (window.m5Data && window.m5Data.isJump) {
+
+    // フラグを即座にリセット（二重発火防止）
+    window.m5Data.isJump = false;
+
+    // 強制ジャンプ
+    this.player.body.setVelocityY(this.jumpPower);
+    this.sound.play('se_jump');
+}
+
+        // 💡 キーボード用のバックアップジャンプ判定（物理地上にいる時のみ作動）
+        const isSpaceKeyDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
+        if (this.player.body.touching.down && this.canJump && isSpaceKeyDown) {
+            this.player.body.setVelocityY(this.jumpPower);
+            this.canJump = false;
+            this.sound.play('se_jump');
+            this.time.delayedCall(this.jumpCooldown, () => {
+                this.canJump = true;
+            });
+        }
+
+        // ------------------------------------------
+        // A. 【漕ぎ・進む速度】の制御（空中センサー漕ぎ解禁 ＆ 慣性維持）
         // ------------------------------------------
         if (this.cursors.right.isDown) {
             this.scrollSpeed += this.acceleration;
-        }
+        } 
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
-            const isPlayerOnGround = this.player.body.touching.down;
 
-            if (isPlayerOnGround && hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
+            if (hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
                 const gyroValue = Math.abs(window.m5Data.gyroY);
                 this.scrollSpeed = gyroValue * 0.1;
             } else {
                 this.scrollSpeed *= this.friction;
                 if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
             }
-        }
+        } 
         
-        // 共通制限：最高速度の枠を超えないようにロックし、背景を動かす
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
         this.background.tilePositionX += this.scrollSpeed * 0.2;
 
-        // 💡 【位置変更】実際にゲームが開始されてから距離を進めるようにここに配置
         this.distance += this.scrollSpeed * 0.05;
 
-        // 100mごとのランダム音声再生ロジック
         if (this.distance >= this.nextMilestone) {
             const randomIndex = Math.floor(Math.random() * this.cheerVoices.length);
             const selectedVoice = this.cheerVoices[randomIndex];
@@ -245,7 +270,6 @@ export default class GameScene extends Phaser.Scene {
             this.nextMilestone += 100;
         }
 
-        // UI実装：画面上のテキスト表示をリアルタイムに書き換える
         const displaySpeed = Math.round(this.scrollSpeed * 5);
         const displayDistance = Math.round(this.distance);
         this.uiText.setText(`速度: ${displaySpeed} km/h\n距離: ${displayDistance} m`);
@@ -261,7 +285,6 @@ export default class GameScene extends Phaser.Scene {
             }
         });
 
-        // サボテン（cacti）を進行に合わせて左へ移動させる
         this.cacti.getChildren().forEach((cactus) => {
             cactus.x = Math.round(cactus.x - this.scrollSpeed);
             cactus.body.updateFromGameObject();
@@ -274,12 +297,10 @@ export default class GameScene extends Phaser.Scene {
 
         this.nextPlatformX -= this.scrollSpeed;
 
-        // 難易度変化＋床に混ざる「独立した障害物」
         if (this.nextPlatformX < this.scale.width) {
             const maxDifficultyDistance = 1000;
             const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
 
-            // 穴の大きさを全体的に縮小
             const minHole = 80 + (60 * difficulty);  
             const maxHole = 120 + (40 * difficulty); 
             const holeWidth = Phaser.Math.Between(minHole, maxHole);
@@ -288,28 +309,19 @@ export default class GameScene extends Phaser.Scene {
             const maxPlatform = 600 - (100 * difficulty);
             const totalPlatformWidth = Phaser.Math.Between(minPlatform, maxPlatform);
 
-            // 60%の確率で「穴」をあけ、40%の確率は穴を作らず「一本道」を延長する
             const isHoleSpawn = Phaser.Math.Between(1, 100) <= 60;
-
             const spawnY = height - this.floorHeight;
 
             if (isHoleSpawn) {
-                // ➔ 【穴をあける場合】：
-                // 直前の平坦な床の右端を綺麗に閉じるために「前回の床の末尾」に floor_right をピンポイントで差し込み、
-                // 穴を挟んだ新しい床の先頭に floor_left を置いてから中央床を伸ばします。
-                
                 const currentLastX = Math.round(this.nextPlatformX);
                 const rightEdgePart = this.add.sprite(currentLastX, spawnY, 'floor_right').setOrigin(0, 0).setScale(this.rightScaleY);
                 this.platforms.add(rightEdgePart);
 
-                // 穴の幅を計算して床を生成
                 const spawnX = currentLastX + holeWidth + this.edgeRightWidth;
 
-                // 新しい床の始まり（左端アセット）
                 const leftPart = this.add.sprite(spawnX, spawnY, 'floor_left').setOrigin(0, 0).setScale(this.leftScaleY);
                 this.platforms.add(leftPart);
 
-                // 中央床の描画
                 const centerWidth = totalPlatformWidth - this.edgeLeftWidth;
                 const centerX = spawnX + this.edgeLeftWidth;
                 const centerPart = this.add.tileSprite(centerX, spawnY, centerWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
@@ -317,7 +329,6 @@ export default class GameScene extends Phaser.Scene {
 
                 this.nextPlatformX = centerX + centerWidth;
 
-                // サボテンの生成抽選（穴をあけた中央床の部分にのみサボテンを置く）
                 if (this.distance > 100) {
                     const cactusProb = 40 + (40 * difficulty);
                     if (Phaser.Math.Between(1, 100) <= cactusProb) {
@@ -340,8 +351,6 @@ export default class GameScene extends Phaser.Scene {
                     }
                 }
             } else {
-                // ➔ 【穴をあけない場合】：
-                // 左右の端パーツ（角）を一切挟まず、ただ中央テクスチャのフラットな床（floor）だけを滑らかに1枚足して延長します。
                 const spawnX = Math.round(this.nextPlatformX);
                 const straightFloorWidth = totalPlatformWidth;
                 
@@ -350,7 +359,6 @@ export default class GameScene extends Phaser.Scene {
 
                 this.nextPlatformX = spawnX + straightFloorWidth;
 
-                // 穴なし直線ルートのサボテン生成抽選
                 if (this.distance > 100) {
                     const cactusProb = 40 + (40 * difficulty);
                     if (Phaser.Math.Between(1, 100) <= cactusProb) {
@@ -375,40 +383,16 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
-        // ------------------------------------------
-        // C. 【ジャンプ】の制御（センサ ＆ Spaceキー入力併用デバッグ仕様）
-        // ------------------------------------------
-        const isJumpSensorTriggered = window.m5Data && window.m5Data.isJump === true;
-        const isSpaceKeyDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
-
-        if (this.player.body.touching.down && this.canJump) {
-            if (isJumpSensorTriggered || isSpaceKeyDown) {
-                this.player.body.setVelocityY(this.jumpPower);
-                this.canJump = false;
-                this.sound.play('se_jump');
-
-                this.time.delayedCall(this.jumpCooldown, () => {
-                    this.canJump = true;
-                });
-                
-                if (isJumpSensorTriggered) {
-                    window.m5Data.isJump = false;
-                }
-            }
-        }
-
         if (this.player.y > this.scale.height) {
             this.triggerGameOverAnimation();
             return;
         }
     }
 
-    // サボテンに接触した瞬間に呼ばれる関数（上下左右即死仕様）
     handleCactusHit(player, cactus) {
         this.triggerGameOverAnimation();
     }
 
-    // 床の側面に激突した瞬間に呼ばれる関数
     handleFloorHit(player, platform) {
         if (this.isGameOverTriggered) return;
         if (player.body.bottom > platform.body.top + 15) {
@@ -416,7 +400,6 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
-    // マリオ風ゲームオーバー演出＆シーン遷移
     triggerGameOverAnimation() {
         if (this.isGameOverTriggered) return;
         this.isGameOverTriggered = true; 

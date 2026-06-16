@@ -63,7 +63,7 @@ ws.onmessage = (event) => {
             //   - M5がG出力（静止時に約1.0）の場合 ➔ 2.5 〜 3.0 付近
             //   - M5がm/s²出力（静止時に約9.8）の場合 ➔ 15.0 〜 20.0 付近
             // ※まずは実機で静止状態・振った状態の totalAcceleration の値を console.log で見て調整してください。
-            const JUMP_THRESHOLD = 1.3; 
+            const JUMP_THRESHOLD = 2.0; 
             
             // 閾値を超えており、かつロックされていない（前回のジャンプから0.5秒以上経っている）場合のみ実行
             if (totalAcceleration > JUMP_THRESHOLD && !isJumpLocked) {

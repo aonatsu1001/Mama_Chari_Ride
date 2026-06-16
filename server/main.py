@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math  # 💡 合成加速度の平方根（sqrt）を計算するために追加
 import socket
 
 import websockets
@@ -44,13 +45,27 @@ async def udp_receiver():
             if sensor_type not in ["gyro", "acc"]:
                 continue
 
+            # 各軸の数値をパース
+            x_val = float(parts[1])
+            y_val = float(parts[2])
+            z_val = float(parts[3])
+
             latest_data[sensor_type] = {
-                "x": float(parts[1]),
-                "y": float(parts[2]),
-                "z": float(parts[3]),
+                "x": x_val,
+                "y": y_val,
+                "z": z_val,
             }
 
-            print(f"{sensor_type}: {latest_data[sensor_type]}")
+            # 💡 【ここを修正：加速度データの時だけ3軸合成加速度（大きさ）を計算して出力】
+            if sensor_type == "acc":
+                # 📐 ベクトルの長さ（合成加速度）を計算 = sqrt(x² + y² + z²)
+                total_acc = math.sqrt(x_val**2 + y_val**2 + z_val**2)
+                
+                # ターミナルに見やすく「大きさ」も並べて出力
+                print(f"acc  : x={x_val:6.2f}, y={y_val:6.2f}, z={z_val:6.2f} | ★大きさ(衝撃) = {total_acc:.2f}")
+            else:
+                # ジャイロデータは従来どおり出力
+                print(f"gyro : x={x_val:6.2f}, y={y_val:6.2f}, z={z_val:6.2f}")
 
         except Exception as e:
             print("Parse Error")
@@ -61,7 +76,6 @@ async def udp_receiver():
 # WebSocket
 # --------------------------------
 
-# 💡 【ここを修正】引数を (websocket, path) から最新仕様の (websocket) のみに変更
 async def websocket_handler(websocket):
     print("Browser Connected")
 
