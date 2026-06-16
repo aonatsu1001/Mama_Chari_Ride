@@ -38,7 +38,7 @@ export default class GameScene extends Phaser.Scene {
         const height = this.scale.height;
 
         // BGMの準備
-        this.bgm = this.sound.add('bgm', { loop: true, volume: 0.5 });
+        this.bgm = this.sound.add('bgm', { loop: true, volume: 0.3 });
 
         // 背景のループ配置
         this.background = this.add.tileSprite(0, 0, width, height, 'background');
@@ -163,7 +163,7 @@ export default class GameScene extends Phaser.Scene {
     startCountdownSequence() {
         this.isReadyToCount = true;
         this.countdownText.setText('3');
-        this.sound.play('se_countdown');
+        this.sound.play('se_countdown', {volume : 0.5});
 
         this.countdownTimer = this.time.addEvent({
             delay: 1000,
@@ -179,11 +179,11 @@ export default class GameScene extends Phaser.Scene {
 
         if (this.countdownValue > 0) {
             this.countdownText.setText(this.countdownValue.toString());
-            this.sound.play('se_countdown');
+            this.sound.play('se_countdown', {volume : 0.5});
         } else if (this.countdownValue === 0) {
             this.countdownText.setText('GO!');
             this.countdownText.setFill('#ff0000dd');
-            this.sound.play('se_go');
+            this.sound.play('se_go', {volume : 0.5});
         } else {
             this.countdownText.destroy();
             this.countdownTimer.destroy();
@@ -196,6 +196,12 @@ export default class GameScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
+        // 💡 【ここを追加：ジャンプフラグ完全封殺ロジック】
+        // カウントダウン中は、蓄積されるセンサーのジャンプフラグを毎フレーム「最優先で強制リセット破棄」します。
+        if (this.isCountingDown && window.m5Data) {
+            window.m5Data.isJump = false;
+        }
+
         // 着地前、およびカウントダウン・ゲームオーバー中は処理を完全に遮断（フライング加算バグ修正版）
         if (this.isCountingDown || this.isGameOverTriggered) {
             if (!this.isReadyToCount && this.player.body.touching.down) {
@@ -210,43 +216,35 @@ export default class GameScene extends Phaser.Scene {
         const height = this.scale.height;
 
         // ------------------------------------------
-        // 💡 【超最優先：センサー絶対ジャンプ制御】
-        // 他のどんな条件判定（地上判定、速度計算、コライダー解決、ジャンプディレイなど）よりも
-        // 最優先で、生データが3.0を超えたその瞬間に対象を上空へと跳ね上げます。
+        // 💡 センサー強制ジャンプ制御
         // ------------------------------------------
-        // ------------------------------------------
-// 💡 センサー強制ジャンプ制御
-// main.js で isJump フラグが立ったら（閾値2.5超）
-// 他の条件に関係なくジャンプ
-// ------------------------------------------
-if (window.m5Data && window.m5Data.isJump) {
+        if (window.m5Data && window.m5Data.isJump) {
+            window.m5Data.isJump = false;
+            if (this.player.body.touching.down) {
+                this.player.body.setVelocityY(this.jumpPower);
+                this.sound.play('se_jump', {volume : 0.5});
+            }
+        }
 
-    // フラグを即座にリセット（二重発火防止）
-    window.m5Data.isJump = false;
-
-    // 強制ジャンプ
-    if(this.player.body.touching.down){
-    this.player.body.setVelocityY(this.jumpPower);
-    this.sound.play('se_jump');
-    }
-}
-
-        // 💡 キーボード用のバックアップジャンプ判定（物理地上にいる時のみ作動）
+        // 💡 キーボード用のバックアップジャンプ判定
         const isSpaceKeyDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
         if (this.player.body.touching.down && this.canJump && isSpaceKeyDown) {
             this.player.body.setVelocityY(this.jumpPower);
             this.canJump = false;
-            this.sound.play('se_jump');
+            this.sound.play('se_jump', {volume : 0.5});
             this.time.delayedCall(this.jumpCooldown, () => {
                 this.canJump = true;
             });
         }
 
         // ------------------------------------------
-        // A. 【漕ぎ・進む速度】の制御（空中センサー漕ぎ解禁 ＆ 慣性維持）
+        // A. 【漕ぎ・進む速度】の制御（右キー優先化 ＆ ブレーキ連動）
         // ------------------------------------------
         if (this.cursors.right.isDown) {
             this.scrollSpeed += this.acceleration;
+        } 
+        else if (window.m5Data && window.m5Data.isBrake) {
+            this.scrollSpeed = 0;
         } 
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
@@ -321,16 +319,26 @@ if (window.m5Data && window.m5Data.isJump) {
 
                 const spawnX = currentLastX + holeWidth + this.edgeRightWidth;
 
+                // 新しい床の始まり（左端アセット）
                 const leftPart = this.add.sprite(spawnX, spawnY, 'floor_left').setOrigin(0, 0).setScale(this.leftScaleY);
                 this.platforms.add(leftPart);
 
-                const centerWidth = totalPlatformWidth - this.edgeLeftWidth;
+                // 中央床の幅を計算
+                let centerWidth = totalPlatformWidth - this.edgeLeftWidth;
+
+                // ジャンプする必要のない極小の床の生成を禁止
+                if (centerWidth < 150) {
+                    centerWidth = 150;
+                }
+
+                // 中央床の描画
                 const centerX = spawnX + this.edgeLeftWidth;
                 const centerPart = this.add.tileSprite(centerX, spawnY, centerWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
                 this.platforms.add(centerPart);
 
                 this.nextPlatformX = centerX + centerWidth;
 
+                // サボテンの生成抽選
                 if (this.distance > 100) {
                     const cactusProb = 40 + (40 * difficulty);
                     if (Phaser.Math.Between(1, 100) <= cactusProb) {
@@ -353,8 +361,9 @@ if (window.m5Data && window.m5Data.isJump) {
                     }
                 }
             } else {
-                const spawnX = Math.round(this.nextPlatformX);
-                const straightFloorWidth = totalPlatformWidth;
+                // 1pxの縦の隙間バグを消滅させるオーバーラップ処理
+                const spawnX = Math.round(this.nextPlatformX) - 1;
+                const straightFloorWidth = totalPlatformWidth + 1; 
                 
                 const straightPart = this.add.tileSprite(spawnX, spawnY, straightFloorWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
                 this.platforms.add(straightPart);
@@ -432,10 +441,10 @@ if (window.m5Data && window.m5Data.isJump) {
         });
 
         this.time.delayedCall(600, () => {
-            this.sound.play('se_gameover');
+            this.sound.play('se_gameover', {volume : 0.8});
         });
 
-        this.time.delayedCall(2500, () => {
+        this.locationTimer = this.time.delayedCall(2500, () => {
             this.scene.start('GameOverScene', { distance: this.distance }); 
         });
     }

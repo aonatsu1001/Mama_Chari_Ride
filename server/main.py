@@ -1,6 +1,6 @@
 import asyncio
 import json
-import math  # 💡 合成加速度の平方根（sqrt）を計算するために追加
+import math  # 💡 合成加速度・合成角速度の平方根（sqrt）を計算するために維持
 import socket
 
 import websockets
@@ -56,16 +56,18 @@ async def udp_receiver():
                 "z": z_val,
             }
 
-            # 💡 【ここを修正：加速度データの時だけ3軸合成加速度（大きさ）を計算して出力】
+            # 💡 【ここを修正：ジャイロ・加速度それぞれで3軸合成の「大きさ」を計算して出力】
             if sensor_type == "acc":
-                # 📐 ベクトルの長さ（合成加速度）を計算 = sqrt(x² + y² + z²)
+                # 📐 加速度のベクトルの長さ（合成加速度）を計算 = sqrt(x² + y² + z²)
                 total_acc = math.sqrt(x_val**2 + y_val**2 + z_val**2)
-                
-                # ターミナルに見やすく「大きさ」も並べて出力
+                # ターミナルに成分と衝撃の大きさを並べて出力
                 print(f"acc  : x={x_val:6.2f}, y={y_val:6.2f}, z={z_val:6.2f} | ★大きさ(衝撃) = {total_acc:.2f}")
-            else:
-                # ジャイロデータは従来どおり出力
-                print(f"gyro : x={x_val:6.2f}, y={y_val:6.2f}, z={z_val:6.2f}")
+                
+            elif sensor_type == "gyro":
+                # 📐 角速度のベクトルの長さ（合成角速度の大きさ）を計算 = sqrt(x² + y² + z²)
+                total_gyro = math.sqrt(x_val**2 + y_val**2 + z_val**2)
+                # ターミナルに成分と回転の大きさを並べて出力
+                print(f"gyro : x={x_val:6.2f}, y={y_val:6.2f}, z={z_val:6.2f} | ☆大きさ(回転) = {total_gyro:.2f}")
 
         except Exception as e:
             print("Parse Error")
