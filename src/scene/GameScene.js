@@ -89,16 +89,15 @@ export default class GameScene extends Phaser.Scene {
         this.platforms = this.physics.add.staticGroup();
         this.cacti = this.physics.add.staticGroup();
 
-        // プレイヤーが最初に降り立つ初期的システム
-        const startCenterWidth = width - this.edgeRightWidth;
-        const startCenterPart = this.add.tileSprite(0, height - this.floorHeight, startCenterWidth + 1, this.floorHeight, 'floor');
-        startCenterPart.setOrigin(0, 0);
-        this.platforms.add(startCenterPart);
-
-        const startRightPart = this.add.sprite(startCenterWidth, height - this.floorHeight, 'floor_right');
-        startRightPart.setOrigin(0, 0);
-        startRightPart.setScale(this.rightScaleY);
-        this.platforms.add(startRightPart);
+        // ------------------------------------------
+        // 💡 【バグ修正】プレイヤーが最初に降り立つ初期的システム
+        // ------------------------------------------
+        // 初期の床をパーツ分けせず、画面右端（width）までフラットな floor だけで1枚布として敷き詰めます。
+        // これにより、画面外から新しく追加される直線フロアと「切れ目なく」100%綺麗に一体化します。
+        const startFloorWidth = width;
+        const startPart = this.add.tileSprite(0, height - this.floorHeight, startFloorWidth + 1, this.floorHeight, 'floor');
+        startPart.setOrigin(0, 0);
+        this.platforms.add(startPart);
 
         this.nextPlatformX = width;
 
@@ -198,7 +197,8 @@ export default class GameScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
-        // 着地前、またはカウントダウン・ゲームオーバー演出中は処理を遮断
+        // 💡 【バグ修正】着地前、およびカウントダウン・ゲームオーバー中は「すべての」進行処理をここで遮断！
+        // これにより、カウントダウンの最中に距離UIがフライングで加算されていく不具合が100%完全に直ります。
         if (this.isCountingDown || this.isGameOverTriggered) {
             if (!this.isReadyToCount && this.player.body.touching.down) {
                 this.isReadyToCount = true;
@@ -234,20 +234,14 @@ export default class GameScene extends Phaser.Scene {
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
         this.background.tilePositionX += this.scrollSpeed * 0.2;
 
-        // UI実装：進んだ距離を更新する
+        // 💡 【位置変更】実際にゲームが開始されてから距離を進めるようにここに配置
         this.distance += this.scrollSpeed * 0.05;
 
-        // 💡 【修正：100mごとのランダム音声再生ロジック】
-        // 現在の距離が目標距離（100, 200, 300...）に到達、または超えた瞬間
+        // 100mごとのランダム音声再生ロジック
         if (this.distance >= this.nextMilestone) {
-            // JavaScriptの確実なランダム計算を使って、配列のインデックス（0 または 1）を決定
             const randomIndex = Math.floor(Math.random() * this.cheerVoices.length);
             const selectedVoice = this.cheerVoices[randomIndex];
-            
-            // 選ばれたボイスを再生（音量を少し大きめの1.2に設定）
             this.sound.play(selectedVoice, { volume: 1.2 });
-
-            // 次の目標距離を +100m 更新する（次は200m、その次は300m...となる）
             this.nextMilestone += 100;
         }
 
@@ -285,6 +279,7 @@ export default class GameScene extends Phaser.Scene {
             const maxDifficultyDistance = 1000;
             const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
 
+            // 穴の大きさを全体的に縮小
             const minHole = 80 + (60 * difficulty);  
             const maxHole = 120 + (40 * difficulty); 
             const holeWidth = Phaser.Math.Between(minHole, maxHole);
@@ -293,64 +288,91 @@ export default class GameScene extends Phaser.Scene {
             const maxPlatform = 600 - (100 * difficulty);
             const totalPlatformWidth = Phaser.Math.Between(minPlatform, maxPlatform);
 
-            const spawnX = Math.round(this.nextPlatformX + holeWidth);
+            // 60%の確率で「穴」をあけ、40%の確率は穴を作らず「一本道」を延長する
+            const isHoleSpawn = Phaser.Math.Between(1, 100) <= 60;
+
             const spawnY = height - this.floorHeight;
 
-            // ① 左端床
-            const leftPart = this.add.sprite(spawnX, spawnY, 'floor_left');
-            leftPart.setOrigin(0, 0);
-            leftPart.setScale(this.leftScaleY);
-            this.platforms.add(leftPart);
+            if (isHoleSpawn) {
+                // ➔ 【穴をあける場合】：
+                // 直前の平坦な床の右端を綺麗に閉じるために「前回の床の末尾」に floor_right をピンポイントで差し込み、
+                // 穴を挟んだ新しい床の先頭に floor_left を置いてから中央床を伸ばします。
+                
+                const currentLastX = Math.round(this.nextPlatformX);
+                const rightEdgePart = this.add.sprite(currentLastX, spawnY, 'floor_right').setOrigin(0, 0).setScale(this.rightScaleY);
+                this.platforms.add(rightEdgePart);
 
-            // ② 中央床
-            const centerWidth = totalPlatformWidth - (this.edgeLeftWidth + this.edgeRightWidth);
-            const centerX = spawnX + this.edgeLeftWidth;
-            const centerPart = this.add.tileSprite(centerX, spawnY, centerWidth + 1, this.floorHeight, 'floor');
-            centerPart.setOrigin(0, 0);
-            this.platforms.add(centerPart);
+                // 穴の幅を計算して床を生成
+                const spawnX = currentLastX + holeWidth + this.edgeRightWidth;
 
-            // ③ 右端床
-            const rightX = centerX + centerWidth;
-            const rightPart = this.add.sprite(rightX, spawnY, 'floor_right');
-            rightPart.setOrigin(0, 0);
-            rightPart.setScale(this.rightScaleY);
-            this.platforms.add(rightPart);
+                // 新しい床の始まり（左端アセット）
+                const leftPart = this.add.sprite(spawnX, spawnY, 'floor_left').setOrigin(0, 0).setScale(this.leftScaleY);
+                this.platforms.add(leftPart);
 
-            // サボテンのランダム生成判定
-            const cactusProb = 50 + (50 * difficulty);
-            const isCactus = Phaser.Math.Between(1, 100) <= cactusProb;
+                // 中央床の描画
+                const centerWidth = totalPlatformWidth - this.edgeLeftWidth;
+                const centerX = spawnX + this.edgeLeftWidth;
+                const centerPart = this.add.tileSprite(centerX, spawnY, centerWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
+                this.platforms.add(centerPart);
 
-            if (isCactus) {
-                const originalCactusWidth = this.textures.get('cactus').getSourceImage().width;
+                this.nextPlatformX = centerX + centerWidth;
 
-                // 固定パラメータ維持
-                const cactusScale = 0.2; 
+                // サボテンの生成抽選（穴をあけた中央床の部分にのみサボテンを置く）
+                if (this.distance > 100) {
+                    const cactusProb = 40 + (40 * difficulty);
+                    if (Phaser.Math.Between(1, 100) <= cactusProb) {
+                        const originalCactusWidth = this.textures.get('cactus').getSourceImage().width;
+                        const cactusScale = 0.2; 
+                        const originalCactusHeight = this.textures.get('cactus').getSourceImage().height;
+                        const scaledCactusWidth = originalCactusWidth * cactusScale;
+                        const scaledCactusHeight = originalCactusHeight * cactusScale;
 
-                const originalCactusHeight = this.textures.get('cactus').getSourceImage().height;
-                const scaledCactusWidth = originalCactusWidth * cactusScale;
-                const scaledCactusHeight = originalCactusHeight * cactusScale;
+                        if (centerWidth > scaledCactusWidth + 40) {
+                            const cactusY = height - this.floorHeight - scaledCactusHeight + 5; 
+                            const cactusOffsetX = Phaser.Math.Between(20, centerWidth - scaledCactusWidth - 20);
+                            const cactusX = centerX + cactusOffsetX;
 
-                if (centerWidth > scaledCactusWidth + 40) {
-                    // 固定パラメータ維持（床下5px埋め込み）
-                    const cactusY = height - this.floorHeight - scaledCactusHeight + 5; 
+                            const cactusPart = this.add.sprite(cactusX, cactusY, 'cactus').setOrigin(0, 0).setDepth(1).setScale(cactusScale);
+                            this.physics.add.existing(cactusPart, true);
+                            this.cacti.add(cactusPart);
+                            cactusPart.body.updateFromGameObject();
+                        }
+                    }
+                }
+            } else {
+                // ➔ 【穴をあけない場合】：
+                // 左右の端パーツ（角）を一切挟まず、ただ中央テクスチャのフラットな床（floor）だけを滑らかに1枚足して延長します。
+                const spawnX = Math.round(this.nextPlatformX);
+                const straightFloorWidth = totalPlatformWidth;
+                
+                const straightPart = this.add.tileSprite(spawnX, spawnY, straightFloorWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
+                this.platforms.add(straightPart);
 
-                    const cactusOffsetX = Phaser.Math.Between(20, centerWidth - scaledCactusWidth - 20);
-                    const cactusX = centerX + cactusOffsetX;
+                this.nextPlatformX = spawnX + straightFloorWidth;
 
-                    const cactusPart = this.add.sprite(cactusX, cactusY, 'cactus');
-                    cactusPart.setOrigin(0, 0);
-                    cactusPart.setDepth(1);
-                    
-                    cactusPart.setScale(cactusScale);
+                // 穴なし直線ルートのサボテン生成抽選
+                if (this.distance > 100) {
+                    const cactusProb = 40 + (40 * difficulty);
+                    if (Phaser.Math.Between(1, 100) <= cactusProb) {
+                        const originalCactusWidth = this.textures.get('cactus').getSourceImage().width;
+                        const cactusScale = 0.2;
+                        const originalCactusHeight = this.textures.get('cactus').getSourceImage().height;
+                        const scaledCactusWidth = originalCactusWidth * cactusScale;
+                        const scaledCactusHeight = originalCactusHeight * cactusScale;
 
-                    this.physics.add.existing(cactusPart, true);
-                    this.cacti.add(cactusPart);
+                        if (straightFloorWidth > scaledCactusWidth + 40) {
+                            const cactusY = height - this.floorHeight - scaledCactusHeight + 5;
+                            const cactusOffsetX = Phaser.Math.Between(40, straightFloorWidth - scaledCactusWidth - 40);
+                            const cactusX = spawnX + cactusOffsetX;
 
-                    cactusPart.body.updateFromGameObject();
+                            const cactusPart = this.add.sprite(cactusX, cactusY, 'cactus').setOrigin(0, 0).setDepth(1).setScale(cactusScale);
+                            this.physics.add.existing(cactusPart, true);
+                            this.cacti.add(cactusPart);
+                            cactusPart.body.updateFromGameObject();
+                        }
+                    }
                 }
             }
-
-            this.nextPlatformX = spawnX + totalPlatformWidth;
         }
 
         // ------------------------------------------
