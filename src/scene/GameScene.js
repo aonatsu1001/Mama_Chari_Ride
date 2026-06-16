@@ -22,6 +22,8 @@ export default class GameScene extends Phaser.Scene {
         this.load.audio('se_jump', 'assets/se/jump.mp3');
         this.load.audio('se_hit', 'assets/se/hit.mp3');
         this.load.audio('se_gameover', 'assets/se/gameover.mp3');
+        this.load.audio('voice_terada', 'assets/se/voice_terada.mp3'); 
+        this.load.audio('voice_ohnishi', 'assets/se/voice_ohnishi.mp3');
     }
 
     // ==========================================
@@ -54,7 +56,7 @@ export default class GameScene extends Phaser.Scene {
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY); 
 
         // 物理パラメータの初期値設定
-        this.maxSpeed = 3;                
+        this.maxSpeed = 6;                
         this.jumpPower = -730;            
         const gravityY = 1800;            
 
@@ -66,6 +68,17 @@ export default class GameScene extends Phaser.Scene {
 
         // UI実装：進んだ距離を管理する変数を初期化
         this.distance = 0;
+
+        // ★★★ 追加：100mごとのイベント用設定 ★★★
+        this.nextMilestone = 100; // 次に音を鳴らす目標距離
+        
+        // 用意したボイスのキー（preloadで指定した名前）を配列にまとめておく
+        this.cheerVoices = ['voice_terada', 'voice_ohnishi'];
+
+        // 初期フラグの追加・変更
+        this.isCountingDown = true; 
+        this.isReadyToCount = false; 
+        this.countdownValue = 3;
 
         // 初期フラグの追加・変更
         this.isCountingDown = true; 
@@ -231,6 +244,20 @@ export default class GameScene extends Phaser.Scene {
 
         // UI実装：進んだ距離を更新する
         this.distance += this.scrollSpeed * 0.05;
+
+        // ★★★ 追加：100mごとの音声再生ロジック ★★★
+        // 現在の距離が目標距離（100, 200, 300...）に到達、または超えた瞬間
+        if (this.distance >= this.nextMilestone) {
+            
+            // 配列の中からランダムに1つのボイスを選ぶ
+            const randomVoice = Phaser.Utils.Array.GetRandom(this.cheerVoices);
+            
+            // 選ばれたボイスを再生（少し音量を大きめにするとBGMに負けません）
+            this.sound.play(randomVoice, { volume: 1.2 });
+
+            // 次の目標距離を +100m 更新する（次は200m、その次は300m...となる）
+            this.nextMilestone += 100;
+        }
 
         // UI実装：画面上のテキスト表示をリアルタイムに書き換える
         const displaySpeed = Math.round(this.scrollSpeed * 5);
