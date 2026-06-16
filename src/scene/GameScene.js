@@ -225,8 +225,10 @@ if (window.m5Data && window.m5Data.isJump) {
     window.m5Data.isJump = false;
 
     // 強制ジャンプ
+    if(this.player.body.touching.down){
     this.player.body.setVelocityY(this.jumpPower);
     this.sound.play('se_jump');
+    }
 }
 
         // 💡 キーボード用のバックアップジャンプ判定（物理地上にいる時のみ作動）
