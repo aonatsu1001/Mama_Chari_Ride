@@ -213,16 +213,16 @@ export default class SpeedBarometer {
     // ============================
     _createSpeedLabel() {
         // 数値表示
-        this.speedText = this.scene.add.text(this.x, this.y + this.radius * 0.38, '0', {
-            fontSize: '14px',
+        this.speedText = this.scene.add.text(this.x, this.y + this.radius * 0.15, '0', {
+            fontSize: '32px',
             fontFamily: '"Courier New", monospace',
             fill: '#f9fafb',
             fontStyle: 'bold',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(this.depth + 5);
 
         // 単位表示
-        this.unitText = this.scene.add.text(this.x, this.y + this.radius * 0.38 + 14, 'km/h', {
-            fontSize: '8px',
+        this.unitText = this.scene.add.text(this.x, this.y + this.radius * 0.15 + 24, 'km/h', {
+            fontSize: '12px',
             fontFamily: '"Courier New", monospace',
             fill: '#6b7280',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(this.depth + 5);

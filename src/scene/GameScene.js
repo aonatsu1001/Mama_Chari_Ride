@@ -66,7 +66,7 @@ export default class GameScene extends Phaser.Scene {
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY);
 
         // 物理パラメータの初期値設定
-        this.maxSpeed = 9;                // 最大速度 6 を完全維持
+        this.maxSpeed = 12;                // 最大速度 6 を完全維持
         this.jumpPower = -780;
         const gravityY = 1800;
 
@@ -168,7 +168,7 @@ export default class GameScene extends Phaser.Scene {
             x: 710,         // 画面右上あたり
             y: 85,
             radius: 55,
-            maxSpeed: 100,   // this.maxSpeed(6) × 5 = 30 km/h 表示
+            maxSpeed: 120,   // this.maxSpeed(6) × 5 = 30 km/h 表示
             depth: 100
         });
 
