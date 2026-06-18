@@ -60,8 +60,8 @@ export default class TutorialScene extends Phaser.Scene {
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY);
 
         // 💡 【本編と完全同期】物理パラメータを GameScene の最高速度に合わせます
-        this.maxSpeed = 3;                // ➔ 本編のmaxSpeed=6へ同期
-        this.jumpPower = -760;
+        this.maxSpeed = 12;                // ➔ 本編のmaxSpeed=12へ同期
+        this.jumpPower = -780;
         const gravityY = 1800;
 
         this.scrollSpeed = 0;
@@ -166,7 +166,7 @@ export default class TutorialScene extends Phaser.Scene {
             x: 710,         // 画面右上あたり
             y: 85,
             radius: 55,
-            maxSpeed: 30,   // maxSpeed(6) × 5 = 30 km/h 表示
+            maxSpeed: 120,   // maxSpeed(12) × 10 = 120 表示
             depth: 100
         });
 
@@ -241,7 +241,7 @@ export default class TutorialScene extends Phaser.Scene {
             this.scrollSpeed += this.acceleration;
         }
         else if (window.m5Data && window.m5Data.isBrake) {
-            this.scrollSpeed *= 0.85; // 自然な減速（通常の摩擦より少し強め）
+            this.scrollSpeed *= 0.98; // 自然な減速（通常の摩擦より少し強め）
             if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
         }
         else {

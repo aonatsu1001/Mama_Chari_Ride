@@ -47,9 +47,9 @@ ws.onmessage = (event) => {
 
         // 📋 ジャイロデータの受信と即時減速ブレーキ処理
         if (data.gyro) {
-            const gx = data.gyro.x * 0.5;
-            const gy = data.gyro.y * 0.5;
-            const gz = data.gyro.z * 0.5;
+            const gx = data.gyro.x * 0.8;
+            const gy = data.gyro.y * 0.8;
+            const gz = data.gyro.z * 0.8;
 
             // 3軸合成角速度（回転の大きさ）を算出 = sqrt(x² + y² + z²)
             const totalGyro = Math.sqrt(gx * gx + gy * gy + gz * gz);
