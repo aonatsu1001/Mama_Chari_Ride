@@ -9,9 +9,9 @@ export default class TutorialScene extends Phaser.Scene {
     // 1. 画像・音声などの素材の事前読み込み
     // ==========================================
     preload() {
-        this.load.image('background', 'assets/bg.png'); 
+        this.load.image('background', 'assets/bg.png');
         this.load.image('player', 'assets/player.png');
-        
+
         this.load.image('floor', 'assets/floor.png');
         this.load.image('floor_left', 'assets/floor_left.png');
         this.load.image('floor_right', 'assets/floor_right.png');
@@ -45,7 +45,7 @@ export default class TutorialScene extends Phaser.Scene {
         this.background.setOrigin(0, 0);
 
         // アセットのサイズに基づくパラメータ計算
-        const initialFloorHeight = 112;   
+        const initialFloorHeight = 112;
         this.floorHeight = initialFloorHeight;
 
         const originalLeftWidth = 217;
@@ -56,23 +56,23 @@ export default class TutorialScene extends Phaser.Scene {
         this.leftScaleY = this.floorHeight / originalLeftHeight;
         this.rightScaleY = this.floorHeight / originalRightHeight;
 
-        this.edgeLeftWidth = Math.floor(originalLeftWidth * this.leftScaleY);   
-        this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY); 
+        this.edgeLeftWidth = Math.floor(originalLeftWidth * this.leftScaleY);
+        this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY);
 
         // 💡 【本編と完全同期】物理パラメータを GameScene の最高速度に合わせます
         this.maxSpeed = 3;                // ➔ 本編のmaxSpeed=6へ同期
-        this.jumpPower = -760;             
-        const gravityY = 1800;            
+        this.jumpPower = -760;
+        const gravityY = 1800;
 
-        this.scrollSpeed = 0;             
-        this.acceleration = 0.2; 
+        this.scrollSpeed = 0;
+        this.acceleration = 0.05;
         this.friction = 0.92;    // ブレーキ強化仕様
-        this.canJump = true;              
-        this.jumpCooldown = 300;          
+        this.canJump = true;
+        this.jumpCooldown = 300;
 
         this.distance = 0;
         this.isGameOverTriggered = false;
-        this.isGoalAchieved = false; 
+        this.isGoalAchieved = false;
 
         // 物理管理グループの作成
         this.platforms = this.physics.add.staticGroup();
@@ -82,7 +82,7 @@ export default class TutorialScene extends Phaser.Scene {
         // 固定ステージマップデザインの設計（オーバーラップ適用版）
         // ------------------------------------------
         // ① 初期足場
-        const platform1Width = 800; 
+        const platform1Width = 800;
         const p1CenterWidth = platform1Width - this.edgeRightWidth;
         const p1Center = this.add.tileSprite(0, height - this.floorHeight, p1CenterWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
         const p1Right = this.add.sprite(p1CenterWidth, height - this.floorHeight, 'floor_right').setOrigin(0, 0).setScale(this.rightScaleY);
@@ -90,7 +90,7 @@ export default class TutorialScene extends Phaser.Scene {
         this.platforms.add(p1Right);
 
         // 固定値の穴のサイズ
-        const holeWidth = 100; 
+        const holeWidth = 100;
 
         // ② 第2足場
         const platform2X = platform1Width + holeWidth - 1;
@@ -122,12 +122,12 @@ export default class TutorialScene extends Phaser.Scene {
         cactusPart.body.updateFromGameObject();
 
         // サボテンを越えたさらに400px先にゴールフラッグ画像を配置
-        this.goalX = cactusX + 400; 
-        
+        this.goalX = cactusX + 400;
+
         this.goalSprite = this.add.image(this.goalX, height - this.floorHeight + 8, 'goal');
         this.goalSprite.setOrigin(0, 1);
         this.goalSprite.setDepth(5);
-        this.goalSprite.setScale(0.3); 
+        this.goalSprite.setScale(0.3);
 
         // ------------------------------------------
         // プレイヤーの作成 ＆ 衝突判定
@@ -144,11 +144,11 @@ export default class TutorialScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
 
         // UI表示（💡 本編のコンパクト仕様に合わせて、高さを80px相当へスリム化）
-        const uiX = 20;   
-        const uiY = 20;   
-        const uiWidth = 180;  
+        const uiX = 20;
+        const uiY = 20;
+        const uiWidth = 180;
         const uiHeight = 76;   // 💡 110からコンパクトに縮小
-        const cornerRadius = 12; 
+        const cornerRadius = 12;
 
         const uiBackground = this.add.graphics().fillStyle(0x000000, 0.75).fillRoundedRect(uiX, uiY, uiWidth, uiHeight, cornerRadius).setScrollFactor(0).setDepth(100);
 
@@ -174,7 +174,7 @@ export default class TutorialScene extends Phaser.Scene {
         this.isTutorialStarting = true;
 
         this.bgm.play();
-        
+
         // 画面上部にチュートリアルガイダンスを常駐表示
         this.add.text(width / 2, 50, '二人で協力してゴールを目指そう！', {
             fontSize: '22px',
@@ -196,7 +196,7 @@ export default class TutorialScene extends Phaser.Scene {
                 window.m5Data.isJump = false;
             }
             if (this.player.body.touching.down) {
-                this.isTutorialStarting = false; 
+                this.isTutorialStarting = false;
             }
             return;
         }
@@ -239,30 +239,40 @@ export default class TutorialScene extends Phaser.Scene {
         // ------------------------------------------
         if (this.cursors.right.isDown) {
             this.scrollSpeed += this.acceleration;
-        } 
+        }
         else if (window.m5Data && window.m5Data.isBrake) {
-            this.scrollSpeed = 0; 
-        } 
+            this.scrollSpeed *= 0.85; // 自然な減速（通常の摩擦より少し強め）
+            if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
+        }
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
 
             if (hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
-                const gyroValue = Math.abs(window.m5Data.gyroY); 
-                this.scrollSpeed = gyroValue * 0.1;
+                const gyroValue = Math.abs(window.m5Data.gyroY);
+                this.scrollSpeed += gyroValue * 0.001;
+
+                // 漕ぎ始めの初速（0から漕ぎ始めた瞬間に最低速度を保証）
+                if (this.scrollSpeed < 5.0) {
+                    this.scrollSpeed = 5.0;
+                }
+
+                if (this.scrollSpeed > this.maxSpeed) {
+                    this.scrollSpeed = this.maxSpeed;
+                }
             } else {
                 this.scrollSpeed *= this.friction;
                 if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
             }
         }
-        
+
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
-        this.background.tilePositionX += this.scrollSpeed * 0.2; 
+        this.background.tilePositionX += this.scrollSpeed * 0.2;
 
         this.distance += this.scrollSpeed * 0.08;
 
         const displaySpeed = Math.round(this.scrollSpeed * 5);
         const displayDistance = Math.round(this.distance);
-        
+
         // 💡 【修正】左上テキストの速度表示を完全に削除し、スッキリ距離だけを更新
         this.uiText.setText(`【練習モード】\n距離: ${displayDistance} m`);
 
@@ -287,13 +297,13 @@ export default class TutorialScene extends Phaser.Scene {
     // 固定アセットを一斉にスクロールさせる関数
     moveStageElements() {
         this.platforms.getChildren().forEach((platform) => {
-            platform.x = Math.round(platform.x - this.scrollSpeed);
-            platform.body.updateFromGameObject(); 
+            platform.x -= this.scrollSpeed;
+            platform.body.updateFromGameObject();
         });
 
         this.cacti.getChildren().forEach((cactus) => {
-            cactus.x = Math.round(cactus.x - this.scrollSpeed);
-            cactus.body.updateFromGameObject(); 
+            cactus.x -= this.scrollSpeed;
+            cactus.body.updateFromGameObject();
         });
 
         this.goalX -= this.scrollSpeed;
@@ -306,9 +316,9 @@ export default class TutorialScene extends Phaser.Scene {
     showTutorialClearUI() {
         if (this.isGoalAchieved) return;
         this.isGoalAchieved = true;
-        
+
         this.bgm.stop();
-        this.sound.play('se_goal'); 
+        this.sound.play('se_goal');
 
         this.goalSprite.destroy();
 
@@ -337,8 +347,8 @@ export default class TutorialScene extends Phaser.Scene {
             const texture = this.textures.createCanvas(key, btnWidth, btnHeight);
             const ctx = texture.context;
             const grad = ctx.createLinearGradient(0, 0, 0, btnHeight);
-            grad.addColorStop(0, '#ffaa00');    
-            grad.addColorStop(1, '#e65c00'); 
+            grad.addColorStop(0, '#ffaa00');
+            grad.addColorStop(1, '#e65c00');
             ctx.fillStyle = grad;
 
             const radius = 16;
@@ -346,7 +356,7 @@ export default class TutorialScene extends Phaser.Scene {
             ctx.moveTo(radius, 0); ctx.lineTo(btnWidth - radius, 0); ctx.quadraticCurveTo(btnWidth, 0, btnWidth, radius);
             ctx.lineTo(btnWidth, btnHeight - radius); ctx.quadraticCurveTo(btnWidth, btnHeight, btnWidth - radius, btnHeight);
             ctx.lineTo(radius, btnHeight); ctx.quadraticCurveTo(0, btnHeight, 0, btnHeight - radius);
-            ctx.lineTo(0, radius); ctx.quadraticCurveTo(0, 0, radius, 0); ctx.closePath(); ctx.fill(); 
+            ctx.lineTo(0, radius); ctx.quadraticCurveTo(0, 0, radius, 0); ctx.closePath(); ctx.fill();
             texture.refresh();
         }
 
@@ -363,8 +373,8 @@ export default class TutorialScene extends Phaser.Scene {
         }).setOrigin(0.5);
         container.add(btnText);
 
-        const offsetX = 113; 
-        const offsetY = 30; 
+        const offsetX = 113;
+        const offsetY = 30;
 
         const hitX = (-btnWidth / 2) + offsetX;
         const hitY = (-btnHeight / 2) + offsetY;
@@ -394,9 +404,9 @@ export default class TutorialScene extends Phaser.Scene {
 
     // チュートリアル中もミスしたらマリオ風に落ちてその場でリスタート
     triggerGameOverAnimation() {
-        this.isGameOverTriggered = true; 
-        this.scrollSpeed = 0;            
-        this.bgm.stop();                 
+        this.isGameOverTriggered = true;
+        this.scrollSpeed = 0;
+        this.bgm.stop();
         this.sound.play('se_hit');
 
         this.player.body.setVelocity(0, 0);
@@ -405,9 +415,9 @@ export default class TutorialScene extends Phaser.Scene {
 
         this.tweens.add({
             targets: this.player,
-            y: this.scale.height * 0.3,        
-            duration: 400,         
-            ease: 'Cubic.easeOut', 
+            y: this.scale.height * 0.3,
+            duration: 400,
+            ease: 'Cubic.easeOut',
             onComplete: () => {
                 this.tweens.add({
                     targets: this.player,

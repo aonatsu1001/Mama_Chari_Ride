@@ -66,12 +66,12 @@ export default class GameScene extends Phaser.Scene {
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY);
 
         // 物理パラメータの初期値設定
-        this.maxSpeed = 3 * 2;                // 最大速度 6 を完全維持
-        this.jumpPower = -760;
+        this.maxSpeed = 9;                // 最大速度 6 を完全維持
+        this.jumpPower = -780;
         const gravityY = 1800;
 
         this.scrollSpeed = 0;
-        this.acceleration = 0.2 * 2;
+        this.acceleration = 0.05;
 
         // 滑り改善の固定パラメータ（ブレーキ強化）
         this.friction = 0.92;
@@ -168,7 +168,7 @@ export default class GameScene extends Phaser.Scene {
             x: 710,         // 画面右上あたり
             y: 85,
             radius: 55,
-            maxSpeed: 30,   // maxSpeed(6) × 5 = 30 km/h 表示
+            maxSpeed: 100,   // this.maxSpeed(6) × 5 = 30 km/h 表示
             depth: 100
         });
 
@@ -259,14 +259,24 @@ export default class GameScene extends Phaser.Scene {
             this.scrollSpeed += this.acceleration;
         }
         else if (window.m5Data && window.m5Data.isBrake) {
-            this.scrollSpeed = 0;
+            this.scrollSpeed *= 0.98; // 自然な減速（通常の摩擦より少し強め）
+            if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
         }
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
 
             if (hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
                 const gyroValue = Math.abs(window.m5Data.gyroY);
-                this.scrollSpeed = gyroValue * 0.1;
+                this.scrollSpeed += gyroValue * 0.001;
+
+                // 漕ぎ始めの初速（0から漕ぎ始めた瞬間に最低速度を保証）
+                if (this.scrollSpeed < 5.0) {
+                    this.scrollSpeed = 5.0;
+                }
+
+                if (this.scrollSpeed > this.maxSpeed) {
+                    this.scrollSpeed = this.maxSpeed;
+                }
             } else {
                 this.scrollSpeed *= this.friction;
                 if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
@@ -300,7 +310,7 @@ export default class GameScene extends Phaser.Scene {
 
         // B-1. 床の移動とランダム生成
         this.platforms.getChildren().forEach((platform) => {
-            platform.x = Math.round(platform.x - this.scrollSpeed);
+            platform.x -= this.scrollSpeed;
             platform.body.updateFromGameObject();
 
             if (platform.x + platform.displayWidth < 0) {
@@ -310,7 +320,7 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.cacti.getChildren().forEach((cactus) => {
-            cactus.x = Math.round(cactus.x - this.scrollSpeed);
+            cactus.x -= this.scrollSpeed;
             cactus.body.updateFromGameObject();
 
             if (cactus.x + cactus.displayWidth < 0) {
