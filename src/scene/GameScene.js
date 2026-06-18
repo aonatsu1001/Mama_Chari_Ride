@@ -30,6 +30,10 @@ export default class GameScene extends Phaser.Scene {
         // 100mごとに再生する応援ボイスのロード
         this.load.audio('voice_terada', 'assets/se/voice_terada.mp3');
         this.load.audio('voice_ohnishi', 'assets/se/voice_ohnishi.mp3');
+
+        // 応援ボイスに対応するアイコンのロード
+        this.load.image('icon_terada', 'assets/icon_terada.jpg');
+        this.load.image('icon_ohnishi', 'assets/icon_ohnishi.jpg');
     }
 
     // ==========================================
@@ -288,6 +292,10 @@ export default class GameScene extends Phaser.Scene {
             const randomIndex = Math.floor(Math.random() * this.cheerVoices.length);
             const selectedVoice = this.cheerVoices[randomIndex];
             this.sound.play(selectedVoice, { volume: 1.2 });
+
+            // 音声に対応したアイコンをポップアップ
+            this.showVoiceIcon(selectedVoice);
+
             this.nextMilestone += 100;
         }
 
@@ -424,6 +432,67 @@ export default class GameScene extends Phaser.Scene {
             this.triggerGameOverAnimation();
             return;
         }
+    }
+
+    showVoiceIcon(voiceKey) {
+        // 例: 'voice_terada' -> 'icon_terada'
+        const iconKey = voiceKey.replace('voice_', 'icon_');
+
+        const width = this.scale.width;
+
+        // 画面上部・中央の座標
+        const targetX = width / 2;
+        const targetY = 150; // 上部からの距離
+
+        // アイコンスプライトの生成
+        const icon = this.add.sprite(targetX, targetY, iconKey);
+        icon.setScrollFactor(0);
+        icon.setDepth(200); // UIよりも手前に表示
+
+        // 画像を丸く切り抜くためのマスクを作成
+        const shape = this.make.graphics();
+        shape.x = targetX;
+        shape.y = targetY;
+        shape.fillStyle(0xffffff);
+        // 元画像の短辺に合わせて円を描く
+        const originalRadius = Math.min(icon.width, icon.height) / 2;
+        shape.fillCircle(0, 0, originalRadius);
+        icon.setMask(shape.createGeometryMask());
+
+        // 表示サイズを一定にするためのスケール計算（小さめ：半径45px）
+        const targetRadius = 45;
+        const targetScale = targetRadius / originalRadius;
+
+        // 「無」から飛び出るように初期スケールと透明度を0に設定
+        icon.setScale(0);
+        icon.setAlpha(0);
+        shape.setScale(0);
+
+        // ポップアップアニメーション
+        this.tweens.add({
+            targets: [icon, shape],
+            scale: targetScale, // 飛び出して目標の小さなサイズに
+            alpha: 1,    // はっきりと見えるように
+            duration: 600,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // 2秒待機後にスッと消える
+                this.time.delayedCall(2000, () => {
+                    this.tweens.add({
+                        targets: [icon, shape],
+                        y: targetY - 50,
+                        alpha: 0,
+                        scale: targetScale * 0.5,
+                        duration: 500,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => {
+                            icon.destroy();
+                            shape.destroy();
+                        }
+                    });
+                });
+            }
+        });
     }
 
     handleCactusHit(player, cactus) {
