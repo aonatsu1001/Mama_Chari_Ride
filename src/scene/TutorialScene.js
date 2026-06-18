@@ -64,8 +64,8 @@ export default class TutorialScene extends Phaser.Scene {
         this.jumpPower = -760;             
         const gravityY = 1800;            
 
-        this.scrollSpeed = 0;             
-        this.acceleration = 0.2; 
+        this.scrollSpeed = 0;
+        this.acceleration = 0.05; 
         this.friction = 0.92;    // ブレーキ強化仕様
         this.canJump = true;              
         this.jumpCooldown = 300;          
@@ -241,14 +241,24 @@ export default class TutorialScene extends Phaser.Scene {
             this.scrollSpeed += this.acceleration;
         } 
         else if (window.m5Data && window.m5Data.isBrake) {
-            this.scrollSpeed = 0; 
+            this.scrollSpeed *= 0.85; // 自然な減速（通常の摩擦より少し強め）
+            if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
         } 
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
 
             if (hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
-                const gyroValue = Math.abs(window.m5Data.gyroY); 
-                this.scrollSpeed = gyroValue * 0.1;
+                const gyroValue = Math.abs(window.m5Data.gyroY);
+                this.scrollSpeed += gyroValue * 0.001;
+
+                // 漕ぎ始めの初速（0から漕ぎ始めた瞬間に最低速度を保証）
+                if (this.scrollSpeed < 5.0) {
+                    this.scrollSpeed = 5.0;
+                }
+
+                if (this.scrollSpeed > this.maxSpeed) {
+                    this.scrollSpeed = this.maxSpeed;
+                }
             } else {
                 this.scrollSpeed *= this.friction;
                 if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
@@ -287,12 +297,12 @@ export default class TutorialScene extends Phaser.Scene {
     // 固定アセットを一斉にスクロールさせる関数
     moveStageElements() {
         this.platforms.getChildren().forEach((platform) => {
-            platform.x = Math.round(platform.x - this.scrollSpeed);
+            platform.x -= this.scrollSpeed;
             platform.body.updateFromGameObject(); 
         });
 
         this.cacti.getChildren().forEach((cactus) => {
-            cactus.x = Math.round(cactus.x - this.scrollSpeed);
+            cactus.x -= this.scrollSpeed;
             cactus.body.updateFromGameObject(); 
         });
 

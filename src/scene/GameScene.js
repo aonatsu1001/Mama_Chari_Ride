@@ -11,11 +11,11 @@ export default class GameScene extends Phaser.Scene {
     preload() {
         this.load.image('background', 'assets/bg.png');
         this.load.image('player', 'assets/player.png');
-        
+
         this.load.image('floor', 'assets/floor.png');
         this.load.image('floor_left', 'assets/floor_left.png');
         this.load.image('floor_right', 'assets/floor_right.png');
-        
+
         // サボテンのアセットを読み込み
         this.load.image('cactus', 'assets/cactus.png');
 
@@ -28,7 +28,7 @@ export default class GameScene extends Phaser.Scene {
         this.load.audio('se_gameover', 'assets/se/gameover.mp3');
 
         // 100mごとに再生する応援ボイスのロード
-        this.load.audio('voice_terada', 'assets/se/voice_terada.mp3'); 
+        this.load.audio('voice_terada', 'assets/se/voice_terada.mp3');
         this.load.audio('voice_ohnishi', 'assets/se/voice_ohnishi.mp3');
     }
 
@@ -47,7 +47,7 @@ export default class GameScene extends Phaser.Scene {
         this.background.setOrigin(0, 0);
 
         // アセットのサイズに基づくパラメータ計算
-        const initialFloorHeight = 112;   
+        const initialFloorHeight = 112;
         this.floorHeight = initialFloorHeight;
 
         const originalLeftWidth = 217;
@@ -58,22 +58,22 @@ export default class GameScene extends Phaser.Scene {
         this.leftScaleY = this.floorHeight / originalLeftHeight;
         this.rightScaleY = this.floorHeight / originalRightHeight;
 
-        this.edgeLeftWidth = Math.floor(originalLeftWidth * this.leftScaleY);   
+        this.edgeLeftWidth = Math.floor(originalLeftWidth * this.leftScaleY);
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY);
 
         // 物理パラメータの初期値設定
-        this.maxSpeed = 3;                // 最大速度 6 を完全維持
-        this.jumpPower = -760;            
-        const gravityY = 1800;            
+        this.maxSpeed = 9;                // 最大速度 6 を完全維持
+        this.jumpPower = -780;
+        const gravityY = 1800;
 
-        this.scrollSpeed = 0;             
-        this.acceleration = 0.2;          
-        
+        this.scrollSpeed = 0;
+        this.acceleration = 0.05;
+
         // 滑り改善の固定パラメータ（ブレーキ強化）
-        this.friction = 0.92;             
-        
-        this.canJump = true;              
-        this.jumpCooldown = 300;          
+        this.friction = 0.92;
+
+        this.canJump = true;
+        this.jumpCooldown = 300;
 
         // 2連暴発防止用のタイマーロック
         this.isSensorJumpLocked = false;
@@ -82,8 +82,8 @@ export default class GameScene extends Phaser.Scene {
         this.distance = 0;
 
         // 100mごとのイベント用設定
-        this.nextMilestone = 100; 
-        this.cheerVoices = ['voice_terada', 'voice_ohnishi']; 
+        this.nextMilestone = 100;
+        this.cheerVoices = ['voice_terada', 'voice_ohnishi'];
 
         // 初期フラグの追加・変更
         this.isCountingDown = true;
@@ -106,10 +106,10 @@ export default class GameScene extends Phaser.Scene {
         // プレイヤー（キャラクター）の作成
         // ------------------------------------------
         this.player = this.physics.add.sprite(150, height - this.floorHeight - 100, 'player');
-        
+
         this.player.setScale(0.1);
         this.player.body.setGravityY(gravityY);
-        this.player.body.setCollideWorldBounds(false); 
+        this.player.body.setCollideWorldBounds(false);
 
         // プレイヤーを床より手前（Depth: 10）に表示
         this.player.setDepth(10);
@@ -122,9 +122,9 @@ export default class GameScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
 
         // UI実装：角角の黒背景とテキストを配置（💡 速度テキスト削除に伴い、少しコンパクトに高さを調整）
-        const uiX = 20;  
-        const uiY = 20;  
-        const uiWidth = 180; 
+        const uiX = 20;
+        const uiY = 20;
+        const uiWidth = 180;
         const uiHeight = 50; // 💡 80から50に縮小してスタイリッシュに
         const cornerRadius = 12;
 
@@ -139,7 +139,7 @@ export default class GameScene extends Phaser.Scene {
             fontStyle: 'bold',
             fill: '#ffffff',
             fontFamily: 'sans-serif',
-            lineSpacing: 6 
+            lineSpacing: 6
         });
         this.uiText.setScrollFactor(0);
 
@@ -151,7 +151,7 @@ export default class GameScene extends Phaser.Scene {
         this.countdownText = this.add.text(width / 2, height / 2, '', {
             fontSize: '80px',
             fontStyle: 'bold',
-            fill: '#ff9100', 
+            fill: '#ff9100',
             fontFamily: 'sans-serif',
             stroke: '#000000',
             strokeThickness: 6
@@ -164,7 +164,7 @@ export default class GameScene extends Phaser.Scene {
             x: 710,         // 画面右上あたり
             y: 85,
             radius: 55,
-            maxSpeed: 30,   // maxSpeed(6) × 5 = 30 km/h 表示
+            maxSpeed: 100,   // this.maxSpeed(6) × 5 = 30 km/h 表示
             depth: 100
         });
 
@@ -175,7 +175,7 @@ export default class GameScene extends Phaser.Scene {
     startCountdownSequence() {
         this.isReadyToCount = true;
         this.countdownText.setText('3');
-        this.sound.play('se_countdown', {volume : 0.5});
+        this.sound.play('se_countdown', { volume: 0.5 });
 
         this.countdownTimer = this.time.addEvent({
             delay: 1000,
@@ -191,11 +191,11 @@ export default class GameScene extends Phaser.Scene {
 
         if (this.countdownValue > 0) {
             this.countdownText.setText(this.countdownValue.toString());
-            this.sound.play('se_countdown', {volume : 0.5});
+            this.sound.play('se_countdown', { volume: 0.5 });
         } else if (this.countdownValue === 0) {
             this.countdownText.setText('GO!');
             this.countdownText.setFill('#ff0000dd');
-            this.sound.play('se_go', {volume : 0.5});
+            this.sound.play('se_go', { volume: 0.5 });
         } else {
             this.countdownText.destroy();
             this.countdownTimer.destroy();
@@ -233,7 +233,7 @@ export default class GameScene extends Phaser.Scene {
             window.m5Data.isJump = false;
             if (this.player.body.touching.down) {
                 this.player.body.setVelocityY(this.jumpPower);
-                this.sound.play('se_jump', {volume : 0.5});
+                this.sound.play('se_jump', { volume: 0.5 });
             }
         }
 
@@ -242,7 +242,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.player.body.touching.down && this.canJump && isSpaceKeyDown) {
             this.player.body.setVelocityY(this.jumpPower);
             this.canJump = false;
-            this.sound.play('se_jump', {volume : 0.5});
+            this.sound.play('se_jump', { volume: 0.5 });
             this.time.delayedCall(this.jumpCooldown, () => {
                 this.canJump = true;
             });
@@ -253,22 +253,32 @@ export default class GameScene extends Phaser.Scene {
         // ------------------------------------------
         if (this.cursors.right.isDown) {
             this.scrollSpeed += this.acceleration;
-        } 
+        }
         else if (window.m5Data && window.m5Data.isBrake) {
-            this.scrollSpeed = 0;
-        } 
+            this.scrollSpeed *= 0.98; // 自然な減速（通常の摩擦より少し強め）
+            if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
+        }
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
 
             if (hasGyroData && Math.abs(window.m5Data.gyroY) > 0.05) {
                 const gyroValue = Math.abs(window.m5Data.gyroY);
-                this.scrollSpeed = gyroValue * 0.1;
+                this.scrollSpeed += gyroValue * 0.001;
+
+                // 漕ぎ始めの初速（0から漕ぎ始めた瞬間に最低速度を保証）
+                if (this.scrollSpeed < 5.0) {
+                    this.scrollSpeed = 5.0;
+                }
+
+                if (this.scrollSpeed > this.maxSpeed) {
+                    this.scrollSpeed = this.maxSpeed;
+                }
             } else {
                 this.scrollSpeed *= this.friction;
                 if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
             }
-        } 
-        
+        }
+
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
         this.background.tilePositionX += this.scrollSpeed * 0.2;
 
@@ -292,7 +302,7 @@ export default class GameScene extends Phaser.Scene {
 
         // B-1. 床の移動とランダム生成
         this.platforms.getChildren().forEach((platform) => {
-            platform.x = Math.round(platform.x - this.scrollSpeed);
+            platform.x -= this.scrollSpeed;
             platform.body.updateFromGameObject();
 
             if (platform.x + platform.displayWidth < 0) {
@@ -302,7 +312,7 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.cacti.getChildren().forEach((cactus) => {
-            cactus.x = Math.round(cactus.x - this.scrollSpeed);
+            cactus.x -= this.scrollSpeed;
             cactus.body.updateFromGameObject();
 
             if (cactus.x + cactus.displayWidth < 0) {
@@ -317,8 +327,8 @@ export default class GameScene extends Phaser.Scene {
             const maxDifficultyDistance = 1000;
             const difficulty = Math.min(1.0, this.distance / maxDifficultyDistance);
 
-            const minHole = 80 + (60 * difficulty);  
-            const maxHole = 120 + (40 * difficulty); 
+            const minHole = 80 + (60 * difficulty);
+            const maxHole = 120 + (40 * difficulty);
             const holeWidth = Phaser.Math.Between(minHole, maxHole);
 
             const minPlatform = 400 - (100 * difficulty);
@@ -359,13 +369,13 @@ export default class GameScene extends Phaser.Scene {
                     const cactusProb = 40 + (40 * difficulty);
                     if (Phaser.Math.Between(1, 100) <= cactusProb) {
                         const originalCactusWidth = this.textures.get('cactus').getSourceImage().width;
-                        const cactusScale = 0.2; 
+                        const cactusScale = 0.2;
                         const originalCactusHeight = this.textures.get('cactus').getSourceImage().height;
                         const scaledCactusWidth = originalCactusWidth * cactusScale;
                         const scaledCactusHeight = originalCactusHeight * cactusScale;
 
                         if (centerWidth > scaledCactusWidth + 40) {
-                            const cactusY = height - this.floorHeight - scaledCactusHeight + 5; 
+                            const cactusY = height - this.floorHeight - scaledCactusHeight + 5;
                             const cactusOffsetX = Phaser.Math.Between(20, centerWidth - scaledCactusWidth - 20);
                             const cactusX = centerX + cactusOffsetX;
 
@@ -379,8 +389,8 @@ export default class GameScene extends Phaser.Scene {
             } else {
                 // 1pxの縦の隙間バグを消滅させるオーバーラップ処理
                 const spawnX = Math.round(this.nextPlatformX) - 1;
-                const straightFloorWidth = totalPlatformWidth + 1; 
-                
+                const straightFloorWidth = totalPlatformWidth + 1;
+
                 const straightPart = this.add.tileSprite(spawnX, spawnY, straightFloorWidth + 1, this.floorHeight, 'floor').setOrigin(0, 0);
                 this.platforms.add(straightPart);
 
@@ -429,9 +439,9 @@ export default class GameScene extends Phaser.Scene {
 
     triggerGameOverAnimation() {
         if (this.isGameOverTriggered) return;
-        this.isGameOverTriggered = true; 
-        this.scrollSpeed = 0;            
-        this.bgm.stop();                 
+        this.isGameOverTriggered = true;
+        this.scrollSpeed = 0;
+        this.bgm.stop();
 
         this.sound.play('se_hit');
 
@@ -439,29 +449,29 @@ export default class GameScene extends Phaser.Scene {
         this.player.body.setAcceleration(0, 0);
         this.player.body.setEnable(false);
 
-        const targetJumpY = this.scale.height * 0.3; 
+        const targetJumpY = this.scale.height * 0.3;
 
         this.tweens.add({
             targets: this.player,
-            y: targetJumpY,        
-            duration: 400,         
-            ease: 'Cubic.easeOut', 
+            y: targetJumpY,
+            duration: 400,
+            ease: 'Cubic.easeOut',
             onComplete: () => {
                 this.tweens.add({
                     targets: this.player,
                     y: this.scale.height + 100,
                     duration: 800,
-                    ease: 'Cubic.easeIn' 
+                    ease: 'Cubic.easeIn'
                 });
             }
         });
 
         this.time.delayedCall(600, () => {
-            this.sound.play('se_gameover', {volume : 0.8});
+            this.sound.play('se_gameover', { volume: 0.8 });
         });
 
         this.locationTimer = this.time.delayedCall(2500, () => {
-            this.scene.start('GameOverScene', { distance: this.distance }); 
+            this.scene.start('GameOverScene', { distance: this.distance });
         });
     }
 }
