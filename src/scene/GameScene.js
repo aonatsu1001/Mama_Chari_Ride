@@ -1,3 +1,5 @@
+import SpeedBarometer from '../ui/SpeedBarometer.js';
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -60,7 +62,7 @@ export default class GameScene extends Phaser.Scene {
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY);
 
         // 物理パラメータの初期値設定
-        this.maxSpeed = 3;                // 最大速度 3 を完全維持
+        this.maxSpeed = 3;                // 最大速度 6 を完全維持
         this.jumpPower = -760;            
         const gravityY = 1800;            
 
@@ -119,11 +121,11 @@ export default class GameScene extends Phaser.Scene {
         // デバッグ用入力（キーボード）の取得
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // UI実装：角角の黒背景とテキストを配置
+        // UI実装：角角の黒背景とテキストを配置（💡 速度テキスト削除に伴い、少しコンパクトに高さを調整）
         const uiX = 20;  
         const uiY = 20;  
         const uiWidth = 180; 
-        const uiHeight = 80; 
+        const uiHeight = 50; // 💡 80から50に縮小してスタイリッシュに
         const cornerRadius = 12;
 
         const uiBackground = this.add.graphics();
@@ -131,7 +133,8 @@ export default class GameScene extends Phaser.Scene {
         uiBackground.fillRoundedRect(uiX, uiY, uiWidth, uiHeight, cornerRadius);
         uiBackground.setScrollFactor(0);
 
-        this.uiText = this.add.text(uiX + 15, uiY + 12, '速度: 0 km/h\n距離: 0 m', {
+        // 💡 初期テキストを「距離: 0 m」のみに修正
+        this.uiText = this.add.text(uiX + 15, uiY + 12, '距離: 0 m', {
             fontSize: '22px',
             fontStyle: 'bold',
             fill: '#ffffff',
@@ -155,6 +158,15 @@ export default class GameScene extends Phaser.Scene {
         }).setOrigin(0.5);
         this.countdownText.setScrollFactor(0);
         this.countdownText.setDepth(102);
+
+        // スピードバロメーター（独立UIコンポーネント）の作成
+        this.speedBarometer = new SpeedBarometer(this, {
+            x: 710,         // 画面右上あたり
+            y: 85,
+            radius: 55,
+            maxSpeed: 30,   // maxSpeed(6) × 5 = 30 km/h 表示
+            depth: 100
+        });
 
         this.isGameOverTriggered = false;
     }
@@ -196,7 +208,6 @@ export default class GameScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
-        // 💡 【ここを追加：ジャンプフラグ完全封殺ロジック】
         // カウントダウン中は、蓄積されるセンサーのジャンプフラグを毎フレーム「最優先で強制リセット破棄」します。
         if (this.isCountingDown && window.m5Data) {
             window.m5Data.isJump = false;
@@ -272,7 +283,12 @@ export default class GameScene extends Phaser.Scene {
 
         const displaySpeed = Math.round(this.scrollSpeed * 5);
         const displayDistance = Math.round(this.distance);
-        this.uiText.setText(`速度: ${displaySpeed} km/h\n距離: ${displayDistance} m`);
+
+        // 💡 【大修正】「速度: XX km/h」のテキスト表示処理を完全カットし、距離のみを美しく出力
+        this.uiText.setText(`距離: ${displayDistance} m`);
+
+        // スピードバロメーターの更新（メーターへのデータ送信は継続し、グラフィカルに速度を表現）
+        this.speedBarometer.update(displaySpeed * 2);
 
         // B-1. 床の移動とランダム生成
         this.platforms.getChildren().forEach((platform) => {

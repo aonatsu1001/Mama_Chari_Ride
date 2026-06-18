@@ -1,3 +1,5 @@
+import SpeedBarometer from '../ui/SpeedBarometer.js';
+
 export default class TutorialScene extends Phaser.Scene {
     constructor() {
         super({ key: 'TutorialScene' });
@@ -57,9 +59,9 @@ export default class TutorialScene extends Phaser.Scene {
         this.edgeLeftWidth = Math.floor(originalLeftWidth * this.leftScaleY);   
         this.edgeRightWidth = Math.floor(originalRightWidth * this.rightScaleY); 
 
-        // 物理パラメータの設定（GameSceneと100%同一）
-        this.maxSpeed = 3;                
-        this.jumpPower = -760; // 💡 -730から本編同一の-760に同期            
+        // 💡 【本編と完全同期】物理パラメータを GameScene の最高速度に合わせます
+        this.maxSpeed = 3;                // ➔ 本編のmaxSpeed=6へ同期
+        this.jumpPower = -760;             
         const gravityY = 1800;            
 
         this.scrollSpeed = 0;             
@@ -77,7 +79,7 @@ export default class TutorialScene extends Phaser.Scene {
         this.cacti = this.physics.add.staticGroup();
 
         // ------------------------------------------
-        // 固定ステージマップデザインの設計（1px隙間バグ防止オーバーラップ適用版）
+        // 固定ステージマップデザインの設計（オーバーラップ適用版）
         // ------------------------------------------
         // ① 初期足場
         const platform1Width = 800; 
@@ -90,7 +92,7 @@ export default class TutorialScene extends Phaser.Scene {
         // 固定値の穴のサイズ
         const holeWidth = 100; 
 
-        // ② 第2足場（💡 開始X点を「- 1」して前の足場の右端アセットと完全に重ね、1pxの縦の隙間を消滅させます）
+        // ② 第2足場
         const platform2X = platform1Width + holeWidth - 1;
         const platform2Width = 1000 + 1;
         const p2CenterWidth = platform2Width - (this.edgeLeftWidth + this.edgeRightWidth);
@@ -105,7 +107,7 @@ export default class TutorialScene extends Phaser.Scene {
         this.platforms.add(p2Center);
         this.platforms.add(p2Right);
 
-        // 固定のサボテン配置（サイズ 0.2 / 床下5px埋め込み）
+        // 固定のサボテン配置
         const cactusScale = 0.2;
         const originalCactusWidth = this.textures.get('cactus').getSourceImage().width;
         const originalCactusHeight = this.textures.get('cactus').getSourceImage().height;
@@ -141,31 +143,40 @@ export default class TutorialScene extends Phaser.Scene {
         // 入力キーの取得
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // UI表示
+        // UI表示（💡 本編のコンパクト仕様に合わせて、高さを80px相当へスリム化）
         const uiX = 20;   
         const uiY = 20;   
-        const uiWidth = 160;  
-        const uiHeight = 110;  
+        const uiWidth = 180;  
+        const uiHeight = 76;   // 💡 110からコンパクトに縮小
         const cornerRadius = 12; 
 
         const uiBackground = this.add.graphics().fillStyle(0x000000, 0.75).fillRoundedRect(uiX, uiY, uiWidth, uiHeight, cornerRadius).setScrollFactor(0).setDepth(100);
 
-        this.uiText = this.add.text(uiX + 15, uiY + 12, '【練習モード】\n速度: 0 km/h\n距離: 0 m', {
+        // 💡 【修正】速度表示の文字列を削除し、本編と揃えた「距離」のみの美しいレイアウトへ
+        this.uiText = this.add.text(uiX + 15, uiY + 12, '【練習モード】\n距離: 0 m', {
             fontSize: '20px',
             fontStyle: 'bold',
             fill: '#ffffff',
             fontFamily: 'sans-serif',
-            lineSpacing: 4
+            lineSpacing: 6
         }).setScrollFactor(0).setDepth(101);
 
-        // 💡 チュートリアルシーンの初期カウントダウン代わりとして、
-        // 最初のプレイヤー着地安定を待つための初期フラグ
+        // 💡 【本編完全移植】スピードバロメーター（独立UIコンポーネント）の作成
+        this.speedBarometer = new SpeedBarometer(this, {
+            x: 710,         // 画面右上あたり
+            y: 85,
+            radius: 55,
+            maxSpeed: 30,   // maxSpeed(6) × 5 = 30 km/h 表示
+            depth: 100
+        });
+
+        // チュートリアルシーンの初期カウントダウン代わりとして、初期フラグをセット
         this.isTutorialStarting = true;
 
         this.bgm.play();
         
         // 画面上部にチュートリアルガイダンスを常駐表示
-        this.add.text(width / 2, 50, 'サボテンや穴を避けてゴールを目指そう！', {
+        this.add.text(width / 2, 50, '二人で協力してゴールを目指そう！', {
             fontSize: '22px',
             fontFamily: 'sans-serif',
             fontWeight: 'bold',
@@ -179,30 +190,30 @@ export default class TutorialScene extends Phaser.Scene {
     // 3. 毎フレームの更新処理（ゲームループ）
     // ==========================================
     update() {
-        // 💡 【移植：開始時ジャンプ暴発完全封殺】
-        // シーンに入ってプレイヤーが地面にしっかり着地するまでは、センサーの古いジャンプフラグを破棄し続けます。
+        // 開始時ジャンプ暴発完全封殺
         if (this.isTutorialStarting) {
             if (window.m5Data) {
                 window.m5Data.isJump = false;
             }
             if (this.player.body.touching.down) {
-                this.isTutorialStarting = false; // 地面に着いたら操作を完全解禁
+                this.isTutorialStarting = false; 
             }
             return;
         }
 
         if (this.isGameOverTriggered) return;
 
-        // ゴール達成時は走行入力を受け付けず、摩擦で静止させる
+        // ゴール達成時は走行入力を受け付けず、バロメーターを0にして静止させる
         if (this.isGoalAchieved) {
             this.scrollSpeed *= this.friction;
             if (this.scrollSpeed < 0.1) this.scrollSpeed = 0;
+            this.speedBarometer.update(0); // バロメーターを安全に静止
             this.moveStageElements();
             return;
         }
 
         // ------------------------------------------
-        // 💡 センサー強制ジャンプ制御（本編と100%同一）
+        // 💡 センサー強制ジャンプ制御
         // ------------------------------------------
         if (window.m5Data && window.m5Data.isJump) {
             window.m5Data.isJump = false;
@@ -212,7 +223,7 @@ export default class TutorialScene extends Phaser.Scene {
             }
         }
 
-        // 💡 キーボード用のバックアップジャンプ判定（本編と100%同一）
+        // 💡 キーボード用のバックアップジャンプ判定
         const isSpaceKeyDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
         if (this.player.body.touching.down && this.canJump && isSpaceKeyDown) {
             this.player.body.setVelocityY(this.jumpPower);
@@ -224,13 +235,13 @@ export default class TutorialScene extends Phaser.Scene {
         }
 
         // ------------------------------------------
-        // A. 【漕ぎ・進む速度】の制御（右キー優先化 ＆ ブレーキ連動：本編と100%同一）
+        // A. 【漕ぎ・進む速度】の制御（右キー優先化 ＆ ブレーキ連動）
         // ------------------------------------------
         if (this.cursors.right.isDown) {
             this.scrollSpeed += this.acceleration;
         } 
         else if (window.m5Data && window.m5Data.isBrake) {
-            this.scrollSpeed = 0; // ➔ センサーを止めたら滑らずにピタッと完全制動
+            this.scrollSpeed = 0; 
         } 
         else {
             const hasGyroData = window.m5Data && typeof window.m5Data.gyroY === 'number' && !isNaN(window.m5Data.gyroY);
@@ -247,17 +258,21 @@ export default class TutorialScene extends Phaser.Scene {
         this.scrollSpeed = Math.min(this.scrollSpeed, this.maxSpeed);
         this.background.tilePositionX += this.scrollSpeed * 0.2; 
 
-        // 💡 進んだ距離の計算倍率（0.08）を本編と完全同一に同期
         this.distance += this.scrollSpeed * 0.08;
 
         const displaySpeed = Math.round(this.scrollSpeed * 5);
         const displayDistance = Math.round(this.distance);
-        this.uiText.setText(`【練習モード】\n速度: ${displaySpeed} km/h\n距離: ${displayDistance} m`);
+        
+        // 💡 【修正】左上テキストの速度表示を完全に削除し、スッキリ距離だけを更新
+        this.uiText.setText(`【練習モード】\n距離: ${displayDistance} m`);
+
+        // 💡 【本編完全移植】スピードバロメーターを現在のリアルタイム速度で美しく追従更新
+        this.speedBarometer.update(displaySpeed * 2);
 
         // ステージ固定配置オブジェクトの移動処理へ
         this.moveStageElements();
 
-        // ゴールフラグ画像の位置をプレイヤーが超えたかチェック
+        // ゴールフラッグ画像の位置をプレイヤーが超えたかチェック
         if (this.goalX <= this.player.x) {
             this.showTutorialClearUI();
         }
@@ -271,19 +286,16 @@ export default class TutorialScene extends Phaser.Scene {
 
     // 固定アセットを一斉にスクロールさせる関数
     moveStageElements() {
-        // 床のスクロール
         this.platforms.getChildren().forEach((platform) => {
             platform.x = Math.round(platform.x - this.scrollSpeed);
             platform.body.updateFromGameObject(); 
         });
 
-        // サボテンのスクロール
         this.cacti.getChildren().forEach((cactus) => {
             cactus.x = Math.round(cactus.x - this.scrollSpeed);
             cactus.body.updateFromGameObject(); 
         });
 
-        // ゴールフラグ画像のスクロール
         this.goalX -= this.scrollSpeed;
         if (this.goalSprite && this.goalSprite.active) {
             this.goalSprite.x = this.goalX;
@@ -303,7 +315,6 @@ export default class TutorialScene extends Phaser.Scene {
         const width = this.scale.width;
         const height = this.scale.height;
 
-        // 「おめでとう！」のテキスト
         this.add.text(width / 2, height * 0.35, 'TUTORIAL CLEAR!', {
             fontSize: '40px',
             fontFamily: 'Arial Black, sans-serif',
@@ -313,17 +324,14 @@ export default class TutorialScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(20);
 
-        // 画面中央に本編へ進むための『START』ボタンを出現させる
         const btnWidth = 220;
         const btnHeight = 54;
         const container = this.add.container(width / 2, height * 0.6);
         container.setDepth(20);
 
-        // ボタンの立体影
         const shadow = this.add.graphics().fillStyle(0x2b1000, 1).fillRoundedRect(-btnWidth / 2, 0, btnWidth, (btnHeight / 2) + 4, 16);
         container.add(shadow);
 
-        // ボタン背景のテクスチャを生成
         const key = 'btn_bg_tutorial_start';
         if (!this.textures.exists(key)) {
             const texture = this.textures.createCanvas(key, btnWidth, btnHeight);
@@ -364,12 +372,10 @@ export default class TutorialScene extends Phaser.Scene {
         btnBgImage.setInteractive(new Phaser.Geom.Rectangle(hitX, hitY, btnWidth, btnHeight), Phaser.Geom.Rectangle.Contains);
         btnBgImage.input.cursor = 'pointer';
 
-        // 本編（GameScene）へ進むイベント
         btnBgImage.on('pointerdown', () => {
             this.scene.start('GameScene');
         });
 
-        // ホバー演出
         btnBgImage.on('pointerover', () => { btnBgImage.y = -2; btnText.y = -2; });
         btnBgImage.on('pointerout', () => { btnBgImage.y = 0; btnText.y = 0; });
     }
