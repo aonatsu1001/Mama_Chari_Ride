@@ -3,9 +3,7 @@ export default class GameOverScene extends Phaser.Scene {
         super({ key: 'GameOverScene' });
     }
 
-    // 他のシーンからデータ（今回は距離）を受け取るための設定
     init(data) {
-        // GameSceneから渡された距離を記録（小数点以下を四捨五入）
         this.finalDistance = Math.round(data.distance || 0);
     }
 
@@ -13,22 +11,18 @@ export default class GameOverScene extends Phaser.Scene {
         const width = this.scale.width;
         const height = this.scale.height;
 
-        // ------------------------------------------
-        // 1. GAME OVER の文字表示（タイトル画面と統一した極太フチ取り）
-        // ------------------------------------------
+        // 1. GAME OVER の文字表示
         this.add.text(width / 2, height * 0.3, 'GAME OVER', {
             fontSize: '48px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: 'bold', 
             fill: '#ff3333',
-            stroke: '#2b1000',  // 濃い茶フチ
+            stroke: '#2b1000',  
             strokeThickness: 6,
             align: 'center'
         }).setOrigin(0.5);
 
-        // ------------------------------------------
         // 2. 走行距離の記録表示
-        // ------------------------------------------
         this.add.text(width / 2, height * 0.5, `走行距離: ${this.finalDistance} m`, {
             fontSize: '28px',
             fontFamily: 'Arial Black, sans-serif',
@@ -41,59 +35,44 @@ export default class GameOverScene extends Phaser.Scene {
 
 
         // ==========================================
-        // 3. もう一度プレイ（タイトル画面へ戻る）ボタン
+        // 3. もう一度走る（リトライ）ボタン
         // ==========================================
         const btnWidth = 240;
         const btnHeight = 54;
         
-        // コンテナを作成してボタンの見た目をまとめる
-        const container = this.add.container(width / 2, height * 0.75);
-        container.setDepth(2);
+        const retryContainer = this.add.container(width / 2, height * 0.68);
+        retryContainer.setDepth(2);
 
-        // ① ボタンの下半分だけにピッタリ沿う精密立体影
-        const shadow = this.add.graphics();
-        shadow.fillStyle(0x2b1000, 1); 
-        shadow.fillRoundedRect(-btnWidth / 2, 0, btnWidth, (btnHeight / 2) + 4, 16);
-        container.add(shadow);
+        const retryShadow = this.add.graphics();
+        retryShadow.fillStyle(0x2b1000, 1);
+        retryShadow.fillRoundedRect(-btnWidth / 2, 0, btnWidth, (btnHeight / 2) + 4, 16);
+        retryContainer.add(retryShadow);
 
-        // ② ボタン本体のグラデーション座布団テクスチャを生成
-        const key = 'btn_bg_retry';
-        
-        // すでにテクスチャマネージャーに 'btn_bg_retry' が登録されているか確認します。
-        if (!this.textures.exists(key)) {
-            const texture = this.textures.createCanvas(key, btnWidth, btnHeight);
+        const retryKey = 'btn_bg_retry_play';
+        if (!this.textures.exists(retryKey)) {
+            const texture = this.textures.createCanvas(retryKey, btnWidth, btnHeight);
             const ctx = texture.context;
 
-            // オレンジ色の縦グラデーション
             const grad = ctx.createLinearGradient(0, 0, 0, btnHeight);
             grad.addColorStop(0, '#ffaa00');    
             grad.addColorStop(1, '#e65c00'); 
             ctx.fillStyle = grad;
 
-            // 角丸半径16pxの精密なパスを作成して塗りつぶし
             const radius = 16;
             ctx.beginPath();
-            ctx.moveTo(radius, 0);
-            ctx.lineTo(btnWidth - radius, 0);
-            ctx.quadraticCurveTo(btnWidth, 0, btnWidth, radius);
-            ctx.lineTo(btnWidth, btnHeight - radius);
-            ctx.quadraticCurveTo(btnWidth, btnHeight, btnWidth - radius, btnHeight);
-            ctx.lineTo(radius, btnHeight);
-            ctx.quadraticCurveTo(0, btnHeight, 0, btnHeight - radius);
-            ctx.lineTo(0, radius);
-            ctx.quadraticCurveTo(0, 0, radius, 0);
-            ctx.closePath();
-            ctx.fill(); 
+            ctx.moveTo(radius, 0); ctx.lineTo(btnWidth - radius, 0); ctx.quadraticCurveTo(btnWidth, 0, btnWidth, radius);
+            ctx.lineTo(btnWidth, btnHeight - radius); ctx.quadraticCurveTo(btnWidth, btnHeight, btnWidth - radius, btnHeight);
+            ctx.lineTo(radius, btnHeight); ctx.quadraticCurveTo(0, btnHeight, 0, btnHeight - radius);
+            ctx.lineTo(0, radius); ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath(); ctx.fill();  
             texture.refresh();
         }
 
-        // 生成（または既存）のグラデーション背景をコンテナに配置
-        const btnBgImage = this.add.image(0, 0, key);
-        btnBgImage.setOrigin(0.5); 
-        container.add(btnBgImage);
+        const retryBgImage = this.add.image(0, 0, retryKey);
+        retryBgImage.setOrigin(0.5); 
+        retryContainer.add(retryBgImage);
 
-        // ③ ボタンの文字（STARTボタンと同じクオリティのArial Black）
-        const btnText = this.add.text(0, 0, 'タイトル画面へ', {
+        const retryText = this.add.text(0, 0, 'もう一度走る', {
             fontSize: '24px',
             fontFamily: 'Arial Black, sans-serif',
             fontWeight: 'bold',
@@ -102,35 +81,83 @@ export default class GameOverScene extends Phaser.Scene {
             strokeThickness: 5,
             align: 'center'
         }).setOrigin(0.5);
-        container.add(btnText);
+        retryContainer.add(retryText);
 
-        // ④ 💡【ここを修正】透明なクリック当たり判定エリアを設定
-        // ご要望に合わせて、当たり判定エリアのみを「右に15px、下に10px」スライドさせています。
-        // もしズレ幅をさらに調整したい場合は、ここの数値を書き換えてみてください。
-        const offsetX = 120; 
-        const offsetY = 20; 
-
+        const offsetX = 120;
+        const offsetY = 20;  
         const hitX = (-btnWidth / 2) + offsetX;
         const hitY = (-btnHeight / 2) + offsetY;
 
-        const hitArea = new Phaser.Geom.Rectangle(hitX, hitY, btnWidth, btnHeight);
-        btnBgImage.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
-        btnBgImage.input.cursor = 'pointer';
+        const retryHitArea = new Phaser.Geom.Rectangle(hitX, hitY, btnWidth, btnHeight);
+        retryBgImage.setInteractive(retryHitArea, Phaser.Geom.Rectangle.Contains);
+        retryBgImage.input.cursor = 'pointer';
 
-        // 【維持】動画背景を考慮した完璧な遷移ロジック
-        btnBgImage.on('pointerdown', () => {
+        retryBgImage.on('pointerdown', () => {
+            this.scene.stop('GameOverScene');
+            this.scene.start('GameScene');
+        });
+
+        retryBgImage.on('pointerover', () => { retryBgImage.y = -2; retryText.y = -2; });
+        retryBgImage.on('pointerout', () => { retryBgImage.y = 0; retryText.y = 0; });
+
+
+        // ==========================================
+        // 4. タイトル画面へ戻る ボタン
+        // 💡 【レイアウト修正】位置を height * 0.82 から 0.86 へ引き下げて綺麗に整列！
+        // ==========================================
+        const titleContainer = this.add.container(width / 2, height * 0.86);
+        titleContainer.setDepth(2);
+
+        const titleShadow = this.add.graphics();
+        titleShadow.fillStyle(0x2b1000, 1);
+        titleShadow.fillRoundedRect(-btnWidth / 2, 0, btnWidth, (btnHeight / 2) + 4, 16);
+        titleContainer.add(titleShadow);
+
+        const titleKey = 'btn_bg_to_title';
+        if (!this.textures.exists(titleKey)) {
+            const texture = this.textures.createCanvas(titleKey, btnWidth, btnHeight);
+            const ctx = texture.context;
+
+            const grad = ctx.createLinearGradient(0, 0, 0, btnHeight);
+            grad.addColorStop(0, '#ffaa00');    
+            grad.addColorStop(1, '#e65c00'); 
+            ctx.fillStyle = grad;
+
+            const radius = 16;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0); ctx.lineTo(btnWidth - radius, 0); ctx.quadraticCurveTo(btnWidth, 0, btnWidth, radius);
+            ctx.lineTo(btnWidth, btnHeight - radius); ctx.quadraticCurveTo(btnWidth, btnHeight, btnWidth - radius, btnHeight);
+            ctx.lineTo(radius, btnHeight); ctx.quadraticCurveTo(0, btnHeight, 0, btnHeight - radius);
+            ctx.lineTo(0, radius); ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath(); ctx.fill(); 
+            texture.refresh();
+        }
+
+        const titleBgImage = this.add.image(0, 0, titleKey);
+        titleBgImage.setOrigin(0.5);
+        titleContainer.add(titleBgImage);
+
+        const titleText = this.add.text(0, 0, 'タイトル画面へ', {
+            fontSize: '24px',
+            fontFamily: 'Arial Black, sans-serif',
+            fontWeight: 'bold',
+            fill: '#ffffff',
+            stroke: '#2b1000',
+            strokeThickness: 5,
+            align: 'center'
+        }).setOrigin(0.5);
+        titleContainer.add(titleText);
+
+        const titleHitArea = new Phaser.Geom.Rectangle(hitX, hitY, btnWidth, btnHeight);
+        titleBgImage.setInteractive(titleHitArea, Phaser.Geom.Rectangle.Contains);
+        titleBgImage.input.cursor = 'pointer';
+
+        titleBgImage.on('pointerdown', () => {
             this.scene.stop('GameOverScene');
             this.scene.wake('TitleScene');
         });
 
-        // マウスホバーでボタンと文字が連動して少し浮く演出
-        btnBgImage.on('pointerover', () => {
-            btnBgImage.y = -2;
-            btnText.y = -2;
-        });
-        btnBgImage.on('pointerout', () => {
-            btnBgImage.y = 0;
-            btnText.y = 0;
-        });
+        titleBgImage.on('pointerover', () => { titleBgImage.y = -2; titleText.y = -2; });
+        titleBgImage.on('pointerout', () => { titleBgImage.y = 0; titleText.y = 0; });
     }
 }
