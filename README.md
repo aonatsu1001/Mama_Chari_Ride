@@ -2,6 +2,12 @@
 
 M5StickC Plus2 のセンサデータ（角速度・加速度）を Python サーバー経由でブラウザに送信し、Phaser 3 で動くゲームを操作する体感型横スクロールアクションゲームです。
 
+
+
+https://github.com/user-attachments/assets/6a8a5735-0eb8-4612-b6fa-ea874804c049
+
+
+
 ---
 
 ## 🛠️ デバッグ方法（初回のみ必須）
