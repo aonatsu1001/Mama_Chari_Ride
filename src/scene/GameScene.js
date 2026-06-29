@@ -296,7 +296,7 @@ export default class GameScene extends Phaser.Scene {
             // 音声に対応したアイコンをポップアップ
             this.showVoiceIcon(selectedVoice);
 
-            this.nextMilestone += 100;
+            this.nextMilestone += 200;
         }
 
         const displaySpeed = Math.round(this.scrollSpeed * 5);
